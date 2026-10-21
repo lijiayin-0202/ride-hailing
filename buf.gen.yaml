@@ -1,0 +1,17 @@
+version: v2
+plugins:
+  # 生成 message / service 基础代码
+  - local: protoc-gen-go
+    out: .
+    opt:
+      - paths=source_relative
+  # 生成 gRPC Server / Client 代码
+  - local: protoc-gen-go-grpc
+    out: .
+    opt:
+      - paths=source_relative
+  # 生成 kratos HTTP 转发的 Server / Client 代码
+  - local: protoc-gen-go-http
+    out: .
+    opt:
+      - paths=source_relative
