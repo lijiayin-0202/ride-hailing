@@ -1,0 +1,22 @@
+# Go
+*.swp
+*.swo
+*.log
+/vendor/
+/bin/
+/.idea/
+/.vscode/
+*.out
+*.test
+
+# Kratos & buf
+buf.lock
+.gen/
+
+# 环境配置
+*.env
+configs/local.yaml
+
+# 系统文件
+.DS_Store
+Thumbs.db
