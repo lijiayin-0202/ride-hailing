@@ -1,0 +1,40 @@
+server:
+  http:
+    network: tcp
+    addr: 0.0.0.0:8000
+    timeout: 1s
+  grpc:
+    network: tcp
+    addr: 0.0.0.0:9000
+    timeout: 1s
+data:
+  # 派单雪花 ID 节点由环境变量 DISPATCH_SNOWFLAKE_NODE_ID 注入，不能提供默认值。
+  # 本机隔离开发环境使用 1；共享或生产环境必须由部署平台分配唯一值（0-1023）。
+  database:
+    driver: postgres
+    # 真实 DSN 只能由已忽略的 configs/local.yaml 或部署配置提供。
+    source: ""
+  redis:
+    network: tcp
+    addr: 127.0.0.1:6379
+    read_timeout: 0.2s
+    write_timeout: 0.2s
+  dispatch_outbox:
+    # 留空即禁用后台发送器，避免默认向未知模块 4 地址建立连接。
+    vehicle_gateway_addr: ""
+    # 留空时 assign 入口明确返回模块 2 不可用；已落库状态事件仍会等待后续投递。
+    order_gateway_addr: ""
+    # 派单策略版本随记录持久化，便于回放某次选车决策。
+    dispatch_strategy: first-eligible-v1
+    # 仅用于直线距离 ETA 估算，不作为实际导航或费用计算依据。
+    dispatch_average_speed_kmh: 30
+    # 单次跨模块调用的最长等待时间，超过后由 Outbox 退避重试。
+    request_timeout: 2s
+    # 模块 4 指令发送器的轮询频率。
+    poll_interval: 1s
+    # 消息/补派任务被工作者独占处理的最长时长，过期后可由其他实例回收。
+    lease_duration: 10s
+    # 超时扫描和补派工作者的轮询频率；确认窗口本身固定为服务端 30 秒。
+    reassignment_poll_interval: 1s
+    # 模块 2 订单状态同步发送器的独立轮询频率。
+    order_sync_poll_interval: 1s
