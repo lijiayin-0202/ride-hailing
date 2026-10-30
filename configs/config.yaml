@@ -2,17 +2,23 @@ server:
   http:
     network: tcp
     addr: 0.0.0.0:8000
-    timeout: 1s
+    # 登录/聚合查询会访问远程 PostgreSQL，1s 过短，调整为 5s
+    timeout: 5s
   grpc:
     network: tcp
     addr: 0.0.0.0:9000
-    timeout: 1s
+    timeout: 5s
 data:
   database:
-    driver: mysql
-    source: root:root@tcp(127.0.0.1:3306)/ride_hailing?parseTime=true
+    # 主库固定 PostgreSQL（AGENT.md §2）；gva 为小组线上库。
+    # 敏感项只允许环境变量注入（.agent/04 §1/§2.2）：yaml 只保留 ${VAR} 占位，禁止落明文口令。
+    # 本地注入示例（PowerShell）：$env:RIDE_DATABASE_SOURCE="postgres://用户名:口令@主机:5432/gva?sslmode=disable"
+    # 未注入时启动会直接报错并提示变量名，不会静默回落到占位串。
+    driver: postgres
+    source: ${RIDE_DATABASE_SOURCE}
   redis:
+    # 验证码存储与限流使用；连接不可用时自动退化为进程内存储（仅单实例开发/联调）
     network: tcp
     addr: 127.0.0.1:6379
-    read_timeout: 0.2s
-    write_timeout: 0.2s
+    read_timeout: 0.5s
+    write_timeout: 0.5s
