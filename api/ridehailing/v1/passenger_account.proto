@@ -1,0 +1,523 @@
+syntax = "proto3";
+
+package ridehailing.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/lijayin-0202/radish-ride-service/api/ridehailing/v1;v1";
+
+// ============================================================================
+// 模块1 用户账号与个人中心（乘客端） —— 成员 A
+// 契约来源：
+//   《萝卜快跑前端页面接口文档》§7.1 手机号登录、§6.2 优惠券
+//   《萝卜快跑开发任务拆分》§3.5 接口开发清单
+// 优先级：mobile-login 为 T0 鉴权支撑，其余为 T2/T3
+// 数据表：passengers / passenger_auth_records / passenger_addresses
+//         passenger_coupons / coupons / passenger_wallets / point_transactions
+//         sign_in_records / notifications
+// ============================================================================
+service PassengerAccount {
+  // 发送登录短信验证码。
+  // 与登录语义分离（《接口设计文档》moduleSummary「登录注册」要求保留两个写接口）；
+  // 响应绝不返回真实验证码，验证码只保存哈希。
+  rpc SendLoginSmsCode(SendLoginSmsCodeRequest) returns (SendLoginSmsCodeReply) {
+    option (google.api.http) = {post: "/api/v1/passenger/auth/sms-codes" body: "*"};
+  }
+
+  // 手机号验证码登录/注册（T0）。新手机号自动注册并返回令牌。
+  rpc MobileLogin(MobileLoginRequest) returns (MobileLoginReply) {
+    option (google.api.http) = {post: "/api/v1/passenger/auth/mobile-login" body: "*"};
+  }
+
+  // 个人中心聚合查询（T2）。一次返回资料、实名状态、积分、券/未读消息摘要。
+  rpc GetProfile(GetProfileRequest) returns (GetProfileReply) {
+    option (google.api.http) = {get: "/api/v1/passenger/profile"};
+  }
+
+  // 修改用户名（昵称，T2）。2-20 个字符，不接受客户端传入乘客ID。
+  rpc UpdateNickname(UpdateNicknameRequest) returns (UpdateNicknameReply) {
+    option (google.api.http) = {patch: "/api/v1/passenger/profile" body: "*"};
+  }
+
+  // 更换绑定手机号（T2）。原手机号与新手机号都必须完成验证码校验，防止越权换绑。
+  rpc ChangeMobile(ChangeMobileRequest) returns (ChangeMobileReply) {
+    option (google.api.http) = {post: "/api/v1/passenger/mobile-change" body: "*"};
+  }
+
+  // 通知/隐私/显示偏好设置（T3）。
+  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsReply) {
+    option (google.api.http) = {patch: "/api/v1/passenger/settings" body: "*"};
+  }
+
+  // 常用地址分页查询（T2）。
+  rpc ListAddresses(ListAddressesRequest) returns (ListAddressesReply) {
+    option (google.api.http) = {get: "/api/v1/passenger/addresses"};
+  }
+
+  // 新增常用地址（T2）。
+  rpc CreateAddress(CreateAddressRequest) returns (AddressReply) {
+    option (google.api.http) = {post: "/api/v1/passenger/addresses" body: "*"};
+  }
+
+  // 修改常用地址（T2）。只更新显式传入的字段。
+  rpc UpdateAddress(UpdateAddressRequest) returns (AddressReply) {
+    option (google.api.http) = {patch: "/api/v1/passenger/addresses/{id}" body: "*"};
+  }
+
+  // 删除常用地址（T2）。删除后按不存在处理，越权删除同样返回资源不存在。
+  rpc DeleteAddress(DeleteAddressRequest) returns (DeleteAddressReply) {
+    option (google.api.http) = {delete: "/api/v1/passenger/addresses/{id}"};
+  }
+
+  // 我的优惠券聚合查询（T2）。
+  rpc ListCoupons(ListCouponsRequest) returns (ListCouponsReply) {
+    option (google.api.http) = {get: "/api/v1/passenger/coupons"};
+  }
+
+  // 积分余额与流水（T2）。
+  rpc GetPoints(GetPointsRequest) returns (GetPointsReply) {
+    option (google.api.http) = {get: "/api/v1/passenger/points"};
+  }
+
+  // 每日签到（T2）。同一乘客同一自然日只记一次。
+  rpc SignIn(SignInRequest) returns (SignInReply) {
+    option (google.api.http) = {post: "/api/v1/passenger/sign-ins" body: "*"};
+  }
+
+  // 消息中心列表（T3），分页且可筛未读。
+  rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsReply) {
+    option (google.api.http) = {get: "/api/v1/passenger/notifications"};
+  }
+
+  // 消息已读标记（T3）。ids 为空且 mark_all=true 时全部已读。
+  rpc MarkNotificationsRead(MarkNotificationsReadRequest) returns (MarkNotificationsReadReply) {
+    option (google.api.http) = {patch: "/api/v1/passenger/notifications" body: "*"};
+  }
+
+  // 提交实名认证（T2）。姓名与身份证号不明文入库，只保留掩码与哈希。
+  rpc SubmitRealName(SubmitRealNameRequest) returns (SubmitRealNameReply) {
+    option (google.api.http) = {post: "/api/v1/passenger/real-name" body: "*"};
+  }
+
+  // 查询实名认证状态（T2）。未提交时 status 为 0，其余字段为空。
+  rpc GetRealName(GetRealNameRequest) returns (GetRealNameReply) {
+    option (google.api.http) = {get: "/api/v1/passenger/real-name"};
+  }
+
+  // 登录设备列表（T2）。按最近登录时间倒序，账号管理页「登录设备」。
+  rpc ListLoginDevices(ListLoginDevicesRequest) returns (ListLoginDevicesReply) {
+    option (google.api.http) = {get: "/api/v1/passenger/login-devices"};
+  }
+
+  // 登录记录（T2）。每次登录尝试一条（成功/失败均记录），账号管理页「登录记录」。
+  rpc ListLoginRecords(ListLoginRecordsRequest) returns (ListLoginRecordsReply) {
+    option (google.api.http) = {get: "/api/v1/passenger/login-records"};
+  }
+}
+
+// ---------------------------- 公共结构 ----------------------------
+
+// 乘客偏好（落 passengers.preferences JSONB，键名与本结构字段同名）。
+message PassengerPreferences {
+  // 订单状态通知
+  optional bool order_notification_enabled = 1;
+  // 活动/优惠通知
+  optional bool promotion_notification_enabled = 2;
+  // 安全类通知（不可关闭，仅展示用途，服务端忽略关闭请求）
+  optional bool security_notification_enabled = 3;
+  // 行程默认分享开关
+  optional bool trip_share_default_enabled = 4;
+}
+
+// 乘客摘要（passengers 表，手机号按最小返回原则脱敏）
+message PassengerSummary {
+  int64 id = 1;
+  string passenger_no = 2;
+  // 脱敏手机号，如 138****0000
+  string mobile = 3;
+  string nickname = 4;
+  string avatar_url = 5;
+  // 实名状态：0 未认证，1 认证中，2 已认证，3 认证驳回
+  int32 real_name_status = 6;
+  // 账号状态：0 冻结，1 正常，2 注销
+  int32 account_status = 7;
+  int32 point_balance = 8;
+  PassengerPreferences preferences = 9;
+  string created_at = 10;
+}
+
+// ---------------------------- 登录 ----------------------------
+
+message SendLoginSmsCodeRequest {
+  // 大陆手机号，服务端规范化后入库/查询
+  string mobile = 1;
+  // 场景，本页面固定 LOGIN
+  string scene = 2;
+}
+
+message SendLoginSmsCodeReply {
+  // 验证码挑战编号，登录时回传
+  string verification_id = 1;
+  int32 expires_in_seconds = 2;
+  // 再次发送等待秒数（后端限流为准，前端倒计时仅展示）
+  int32 resend_after_seconds = 3;
+  // 脱敏手机号，确认发送目标
+  string masked_mobile = 4;
+}
+
+message MobileLoginRequest {
+  string mobile = 1;
+  // 6 位数字验证码
+  string sms_code = 2;
+  // 挑战编号；为空时按手机号取最近一次未消费的挑战
+  string verification_id = 3;
+  // 客户端设备编号，用于登录审计
+  string device_id = 4;
+}
+
+message MobileLoginReply {
+  PassengerSummary passenger = 1;
+  string access_token = 2;
+  int32 expires_in_seconds = 3;
+  // 是否为新注册乘客（前端可据此引导实名/新人券）
+  bool is_new_user = 4;
+}
+
+// ---------------------------- 个人中心 ----------------------------
+
+message GetProfileRequest {}
+
+message GetProfileReply {
+  PassengerSummary passenger = 1;
+  // 钱包余额（passenger_wallets.balance，单位元）
+  double wallet_balance = 2;
+  // 可用券张数
+  int32 available_coupon_count = 3;
+  // 未读消息数
+  int32 unread_notification_count = 4;
+  // 今日是否已签到
+  bool signed_in_today = 5;
+  // 连续签到天数
+  int32 continuous_sign_in_days = 6;
+}
+
+message UpdateSettingsRequest {
+  PassengerPreferences preferences = 1;
+}
+
+message UpdateSettingsReply {
+  PassengerPreferences preferences = 1;
+}
+
+// ---------------------------- 常用地址 ----------------------------
+
+// 常用地址（passenger_addresses）
+message PassengerAddress {
+  int64 id = 1;
+  // 地址类型：1 家，2 公司，3 常用站点
+  int32 address_type = 2;
+  string address_name = 3;
+  string address = 4;
+  double longitude = 5;
+  double latitude = 6;
+  // 关联 stations.id；站点表由模块3交付，未落地前不返回站点名称
+  int64 station_id = 7;
+  bool is_default = 8;
+  string last_used_at = 9;
+  string created_at = 10;
+  string updated_at = 11;
+}
+
+message ListAddressesRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  // 可选，按地址类型筛选
+  optional int32 address_type = 3;
+}
+
+message ListAddressesReply {
+  repeated PassengerAddress items = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message CreateAddressRequest {
+  int32 address_type = 1;
+  string address_name = 2;
+  string address = 3;
+  double longitude = 4;
+  double latitude = 5;
+  int64 station_id = 6;
+  bool is_default = 7;
+}
+
+message UpdateAddressRequest {
+  int64 id = 1;
+  optional int32 address_type = 2;
+  optional string address_name = 3;
+  optional string address = 4;
+  optional double longitude = 5;
+  optional double latitude = 6;
+  optional int64 station_id = 7;
+  optional bool is_default = 8;
+}
+
+message AddressReply {
+  PassengerAddress address = 1;
+}
+
+message DeleteAddressRequest {
+  int64 id = 1;
+}
+
+message DeleteAddressReply {
+  int64 id = 1;
+  // 是否删除成功；重复删除返回资源不存在错误
+  bool deleted = 2;
+}
+
+// ---------------------------- 优惠券 ----------------------------
+
+// 用户券实例 + 券模板（passenger_coupons 联表 coupons）
+message PassengerCoupon {
+  int64 id = 1;
+  int64 coupon_id = 2;
+  string coupon_instance_no = 3;
+  string coupon_name = 4;
+  // 券类型：1 立减，2 满减，3 折扣
+  int32 coupon_type = 5;
+  double discount_amount = 6;
+  double discount_rate = 7;
+  double minimum_order_amount = 8;
+  int64 service_area_id = 9;
+  string valid_from = 10;
+  string valid_to = 11;
+  // 用户券状态：0 未使用，1 已锁定，2 已使用，3 已过期
+  int32 status = 12;
+  string received_at = 13;
+  string expires_at = 14;
+}
+
+message ListCouponsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  // 可选，按券状态筛选
+  optional int32 status = 3;
+}
+
+message ListCouponsReply {
+  repeated PassengerCoupon items = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  // 未使用券张数
+  int32 available_count = 5;
+}
+
+// ---------------------------- 积分与签到 ----------------------------
+
+message PointTransaction {
+  int64 id = 1;
+  string transaction_no = 2;
+  // 变动值，正为获得负为消耗
+  int32 change_amount = 3;
+  int32 balance_after = 4;
+  // 来源：1 完成行程，2 每日签到，3 兑换消耗，4 人工调整
+  int32 source_type = 5;
+  int64 related_order_id = 6;
+  string remark = 7;
+  string created_at = 8;
+}
+
+message GetPointsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message GetPointsReply {
+  int32 point_balance = 1;
+  repeated PointTransaction items = 2;
+  int64 total = 3;
+  int32 page = 4;
+  int32 page_size = 5;
+}
+
+message SignInRequest {}
+
+message SignInReply {
+  string sign_in_date = 1;
+  int32 reward_points = 2;
+  int32 continuous_days = 3;
+  int32 point_balance = 4;
+  // 当天已签到时返回 true 并回放当天结果，保证幂等
+  bool already_signed = 5;
+}
+
+// ---------------------------- 通知 ----------------------------
+
+message Notification {
+  int64 id = 1;
+  // 类型：1 订单，2 支付，3 活动，4 安全，5 系统
+  int32 notification_type = 2;
+  string title = 3;
+  string content = 4;
+  int64 related_order_id = 5;
+  bool is_read = 6;
+  string read_at = 7;
+  string created_at = 8;
+}
+
+message ListNotificationsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  // 可选，按已读状态筛选
+  optional bool is_read = 3;
+}
+
+message ListNotificationsReply {
+  repeated Notification items = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  int32 unread_count = 5;
+}
+
+message MarkNotificationsReadRequest {
+  repeated int64 ids = 1;
+  // ids 为空时生效：true 表示全部标记已读
+  bool mark_all = 2;
+}
+
+message MarkNotificationsReadReply {
+  int32 updated_count = 1;
+  int32 unread_count = 2;
+}
+
+// ---------------------------- 实名认证 ----------------------------
+
+message SubmitRealNameRequest {
+  // 真实姓名，2-30 个字符
+  string real_name = 1;
+  // 18 位大陆身份证号；服务端只保存掩码与哈希，不落明文
+  string id_card_no = 2;
+}
+
+message SubmitRealNameReply {
+  // 提交后 passengers.real_name_status 的最新值：1 认证中
+  int32 real_name_status = 1;
+  // 姓名掩码，如 张*
+  string real_name_masked = 2;
+  // 身份证掩码，如 110101********1234
+  string id_card_masked = 3;
+  string submitted_at = 4;
+}
+
+// ---------------------------- 资料修改 ----------------------------
+
+message UpdateNicknameRequest {
+  // 新昵称：2-20 个字符，不允许换行/控制字符
+  string nickname = 1;
+}
+
+message UpdateNicknameReply {
+  PassengerSummary passenger = 1;
+}
+
+// 换绑手机号：原号与新号各需一次验证码，避免仅凭新号验证就抢占账号。
+message ChangeMobileRequest {
+  // 新手机号
+  string new_mobile = 1;
+  // 原手机号收到的验证码（scene = CHANGE_MOBILE_OLD）
+  string old_sms_code = 2;
+  string old_verification_id = 3;
+  // 新手机号收到的验证码（scene = CHANGE_MOBILE_NEW）
+  string new_sms_code = 4;
+  string new_verification_id = 5;
+}
+
+message ChangeMobileReply {
+  // 换绑后的乘客摘要（手机号已脱敏）
+  PassengerSummary passenger = 1;
+}
+
+message GetRealNameRequest {}
+
+// ---------------------------- 登录设备与登录记录 ----------------------------
+
+// 登录设备（passenger_login_devices）。同一设备重复登录只更新时间与次数。
+message LoginDevice {
+  // 客户端持久化的设备编号（非硬件唯一标识）
+  string device_id = 1;
+  // 设备名称，如 iPhone · Safari
+  string device_name = 2;
+  // 设备型号，如 iPhone 15 / SM-G9910 / PC
+  string device_model = 3;
+  string os_name = 4;
+  string os_version = 5;
+  string app_version = 6;
+  // 最近登录 IP（脱敏，如 114.114.*.*）
+  string last_login_ip = 7;
+  // 最近登录归属地；无 IP 库时返回「内网地址」「未知归属地」
+  string last_login_location = 8;
+  int32 login_count = 9;
+  string first_login_at = 10;
+  string last_login_at = 11;
+}
+
+message ListLoginDevicesRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message ListLoginDevicesReply {
+  repeated LoginDevice items = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// 登录记录（passenger_auth_records），成功与失败都记录。
+message LoginRecord {
+  int64 id = 1;
+  string login_at = 2;
+  string device_id = 3;
+  string device_name = 4;
+  string device_model = 5;
+  // 登录 IP（脱敏）
+  string login_ip = 6;
+  string login_location = 7;
+  // 认证方式：1 手机号验证码
+  int32 auth_type = 8;
+  // 登录结果：0 失败，1 成功
+  int32 login_result = 9;
+  // 失败原因，仅 login_result = 0 时有值
+  string failure_reason = 10;
+}
+
+message ListLoginRecordsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  // 可选，按登录结果筛选：0 失败，1 成功
+  optional int32 login_result = 3;
+}
+
+message ListLoginRecordsReply {
+  repeated LoginRecord items = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message GetRealNameReply {
+  // 乘客维度实名状态：0 未认证 1 认证中 2 已认证 3 认证驳回
+  int32 real_name_status = 1;
+  // 认证记录状态：同 real_name_status；从未提交时为 0
+  int32 record_status = 2;
+  string real_name_masked = 3;
+  string id_card_masked = 4;
+  string submitted_at = 5;
+  string verified_at = 6;
+  // 驳回原因，仅当 record_status = 3 时有值
+  string reject_reason = 7;
+}
