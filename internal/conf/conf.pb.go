@@ -127,11 +127,12 @@ func (x *Server) GetGrpc() *Server_GRPC {
 }
 
 type Data struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Database      *Data_Database         `protobuf:"bytes,1,opt,name=database,proto3" json:"database,omitempty"`
-	Redis         *Data_Redis            `protobuf:"bytes,2,opt,name=redis,proto3" json:"redis,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Database       *Data_Database         `protobuf:"bytes,1,opt,name=database,proto3" json:"database,omitempty"`
+	Redis          *Data_Redis            `protobuf:"bytes,2,opt,name=redis,proto3" json:"redis,omitempty"`
+	DispatchOutbox *Data_DispatchOutbox   `protobuf:"bytes,3,opt,name=dispatch_outbox,json=dispatchOutbox,proto3" json:"dispatch_outbox,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Data) Reset() {
@@ -174,6 +175,13 @@ func (x *Data) GetDatabase() *Data_Database {
 func (x *Data) GetRedis() *Data_Redis {
 	if x != nil {
 		return x.Redis
+	}
+	return nil
+}
+
+func (x *Data) GetDispatchOutbox() *Data_DispatchOutbox {
+	if x != nil {
+		return x.DispatchOutbox
 	}
 	return nil
 }
@@ -350,22 +358,16 @@ func (x *Data_Database) GetSource() string {
 	return ""
 }
 
-// Redis 连接配置；字段口径与后台服务 radish-admin-server 的 config.Redis 对齐
-// （单机/集群二选一、口令、逻辑库），便于两个服务用同一套运维参数。
 type Data_Redis struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	Network      string                 `protobuf:"bytes,1,opt,name=network,proto3" json:"network,omitempty"`
-	Addr         string                 `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr,omitempty"`
-	ReadTimeout  *durationpb.Duration   `protobuf:"bytes,3,opt,name=read_timeout,json=readTimeout,proto3" json:"read_timeout,omitempty"`
-	WriteTimeout *durationpb.Duration   `protobuf:"bytes,4,opt,name=write_timeout,json=writeTimeout,proto3" json:"write_timeout,omitempty"`
-	// password 连接口令；敏感项由环境变量注入，yaml 只保留 ${VAR} 占位。
-	Password string `protobuf:"bytes,5,opt,name=password,proto3" json:"password,omitempty"`
-	// db 逻辑库编号，仅单机模式生效。
-	Db int32 `protobuf:"varint,6,opt,name=db,proto3" json:"db,omitempty"`
-	// use_cluster 是否启用集群模式。
-	UseCluster bool `protobuf:"varint,7,opt,name=use_cluster,json=useCluster,proto3" json:"use_cluster,omitempty"`
-	// cluster_addrs 集群节点地址，use_cluster 为 true 时生效。
-	ClusterAddrs  []string `protobuf:"bytes,8,rep,name=cluster_addrs,json=clusterAddrs,proto3" json:"cluster_addrs,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Network       string                 `protobuf:"bytes,1,opt,name=network,proto3" json:"network,omitempty"`
+	Addr          string                 `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr,omitempty"`
+	ReadTimeout   *durationpb.Duration   `protobuf:"bytes,3,opt,name=read_timeout,json=readTimeout,proto3" json:"read_timeout,omitempty"`
+	WriteTimeout  *durationpb.Duration   `protobuf:"bytes,4,opt,name=write_timeout,json=writeTimeout,proto3" json:"write_timeout,omitempty"`
+	Password      string                 `protobuf:"bytes,5,opt,name=password,proto3" json:"password,omitempty"`
+	Db            int32                  `protobuf:"varint,6,opt,name=db,proto3" json:"db,omitempty"`
+	UseCluster    bool                   `protobuf:"varint,7,opt,name=use_cluster,json=useCluster,proto3" json:"use_cluster,omitempty"`
+	ClusterAddrs  []string               `protobuf:"bytes,8,rep,name=cluster_addrs,json=clusterAddrs,proto3" json:"cluster_addrs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -456,6 +458,114 @@ func (x *Data_Redis) GetClusterAddrs() []string {
 	return nil
 }
 
+type Data_DispatchOutbox struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	VehicleGatewayAddr       string                 `protobuf:"bytes,1,opt,name=vehicle_gateway_addr,json=vehicleGatewayAddr,proto3" json:"vehicle_gateway_addr,omitempty"`
+	RequestTimeout           *durationpb.Duration   `protobuf:"bytes,2,opt,name=request_timeout,json=requestTimeout,proto3" json:"request_timeout,omitempty"`
+	PollInterval             *durationpb.Duration   `protobuf:"bytes,3,opt,name=poll_interval,json=pollInterval,proto3" json:"poll_interval,omitempty"`
+	LeaseDuration            *durationpb.Duration   `protobuf:"bytes,4,opt,name=lease_duration,json=leaseDuration,proto3" json:"lease_duration,omitempty"`
+	OrderGatewayAddr         string                 `protobuf:"bytes,5,opt,name=order_gateway_addr,json=orderGatewayAddr,proto3" json:"order_gateway_addr,omitempty"`
+	DispatchStrategy         string                 `protobuf:"bytes,6,opt,name=dispatch_strategy,json=dispatchStrategy,proto3" json:"dispatch_strategy,omitempty"`
+	DispatchAverageSpeedKmh  float64                `protobuf:"fixed64,7,opt,name=dispatch_average_speed_kmh,json=dispatchAverageSpeedKmh,proto3" json:"dispatch_average_speed_kmh,omitempty"`
+	ReassignmentPollInterval *durationpb.Duration   `protobuf:"bytes,8,opt,name=reassignment_poll_interval,json=reassignmentPollInterval,proto3" json:"reassignment_poll_interval,omitempty"`
+	OrderSyncPollInterval    *durationpb.Duration   `protobuf:"bytes,9,opt,name=order_sync_poll_interval,json=orderSyncPollInterval,proto3" json:"order_sync_poll_interval,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *Data_DispatchOutbox) Reset() {
+	*x = Data_DispatchOutbox{}
+	mi := &file_internal_conf_conf_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Data_DispatchOutbox) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Data_DispatchOutbox) ProtoMessage() {}
+
+func (x *Data_DispatchOutbox) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_conf_conf_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Data_DispatchOutbox.ProtoReflect.Descriptor instead.
+func (*Data_DispatchOutbox) Descriptor() ([]byte, []int) {
+	return file_internal_conf_conf_proto_rawDescGZIP(), []int{2, 2}
+}
+
+func (x *Data_DispatchOutbox) GetVehicleGatewayAddr() string {
+	if x != nil {
+		return x.VehicleGatewayAddr
+	}
+	return ""
+}
+
+func (x *Data_DispatchOutbox) GetRequestTimeout() *durationpb.Duration {
+	if x != nil {
+		return x.RequestTimeout
+	}
+	return nil
+}
+
+func (x *Data_DispatchOutbox) GetPollInterval() *durationpb.Duration {
+	if x != nil {
+		return x.PollInterval
+	}
+	return nil
+}
+
+func (x *Data_DispatchOutbox) GetLeaseDuration() *durationpb.Duration {
+	if x != nil {
+		return x.LeaseDuration
+	}
+	return nil
+}
+
+func (x *Data_DispatchOutbox) GetOrderGatewayAddr() string {
+	if x != nil {
+		return x.OrderGatewayAddr
+	}
+	return ""
+}
+
+func (x *Data_DispatchOutbox) GetDispatchStrategy() string {
+	if x != nil {
+		return x.DispatchStrategy
+	}
+	return ""
+}
+
+func (x *Data_DispatchOutbox) GetDispatchAverageSpeedKmh() float64 {
+	if x != nil {
+		return x.DispatchAverageSpeedKmh
+	}
+	return 0
+}
+
+func (x *Data_DispatchOutbox) GetReassignmentPollInterval() *durationpb.Duration {
+	if x != nil {
+		return x.ReassignmentPollInterval
+	}
+	return nil
+}
+
+func (x *Data_DispatchOutbox) GetOrderSyncPollInterval() *durationpb.Duration {
+	if x != nil {
+		return x.OrderSyncPollInterval
+	}
+	return nil
+}
+
 var File_internal_conf_conf_proto protoreflect.FileDescriptor
 
 const file_internal_conf_conf_proto_rawDesc = "" +
@@ -474,10 +584,11 @@ const file_internal_conf_conf_proto_rawDesc = "" +
 	"\x04GRPC\x12\x18\n" +
 	"\anetwork\x18\x01 \x01(\tR\anetwork\x12\x12\n" +
 	"\x04addr\x18\x02 \x01(\tR\x04addr\x123\n" +
-	"\atimeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\atimeout\"\xdb\x03\n" +
+	"\atimeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\atimeout\"\xfb\b\n" +
 	"\x04Data\x12;\n" +
 	"\bdatabase\x18\x01 \x01(\v2\x1f.ridehailing.conf.Data.DatabaseR\bdatabase\x122\n" +
-	"\x05redis\x18\x02 \x01(\v2\x1c.ridehailing.conf.Data.RedisR\x05redis\x1a:\n" +
+	"\x05redis\x18\x02 \x01(\v2\x1c.ridehailing.conf.Data.RedisR\x05redis\x12N\n" +
+	"\x0fdispatch_outbox\x18\x03 \x01(\v2%.ridehailing.conf.Data.DispatchOutboxR\x0edispatchOutbox\x1a:\n" +
 	"\bDatabase\x12\x16\n" +
 	"\x06driver\x18\x01 \x01(\tR\x06driver\x12\x16\n" +
 	"\x06source\x18\x02 \x01(\tR\x06source\x1a\xa5\x02\n" +
@@ -490,7 +601,17 @@ const file_internal_conf_conf_proto_rawDesc = "" +
 	"\x02db\x18\x06 \x01(\x05R\x02db\x12\x1f\n" +
 	"\vuse_cluster\x18\a \x01(\bR\n" +
 	"useCluster\x12#\n" +
-	"\rcluster_addrs\x18\b \x03(\tR\fclusterAddrsB@Z>github.com/lijayin-0202/radish-ride-service/internal/conf;confb\x06proto3"
+	"\rcluster_addrs\x18\b \x03(\tR\fclusterAddrs\x1a\xcd\x04\n" +
+	"\x0eDispatchOutbox\x120\n" +
+	"\x14vehicle_gateway_addr\x18\x01 \x01(\tR\x12vehicleGatewayAddr\x12B\n" +
+	"\x0frequest_timeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x0erequestTimeout\x12>\n" +
+	"\rpoll_interval\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\fpollInterval\x12@\n" +
+	"\x0elease_duration\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\rleaseDuration\x12,\n" +
+	"\x12order_gateway_addr\x18\x05 \x01(\tR\x10orderGatewayAddr\x12+\n" +
+	"\x11dispatch_strategy\x18\x06 \x01(\tR\x10dispatchStrategy\x12;\n" +
+	"\x1adispatch_average_speed_kmh\x18\a \x01(\x01R\x17dispatchAverageSpeedKmh\x12W\n" +
+	"\x1areassignment_poll_interval\x18\b \x01(\v2\x19.google.protobuf.DurationR\x18reassignmentPollInterval\x12R\n" +
+	"\x18order_sync_poll_interval\x18\t \x01(\v2\x19.google.protobuf.DurationR\x15orderSyncPollIntervalB@Z>github.com/lijayin-0202/radish-ride-service/internal/conf;confb\x06proto3"
 
 var (
 	file_internal_conf_conf_proto_rawDescOnce sync.Once
@@ -504,7 +625,7 @@ func file_internal_conf_conf_proto_rawDescGZIP() []byte {
 	return file_internal_conf_conf_proto_rawDescData
 }
 
-var file_internal_conf_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_internal_conf_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_internal_conf_conf_proto_goTypes = []any{
 	(*Bootstrap)(nil),           // 0: ridehailing.conf.Bootstrap
 	(*Server)(nil),              // 1: ridehailing.conf.Server
@@ -513,7 +634,8 @@ var file_internal_conf_conf_proto_goTypes = []any{
 	(*Server_GRPC)(nil),         // 4: ridehailing.conf.Server.GRPC
 	(*Data_Database)(nil),       // 5: ridehailing.conf.Data.Database
 	(*Data_Redis)(nil),          // 6: ridehailing.conf.Data.Redis
-	(*durationpb.Duration)(nil), // 7: google.protobuf.Duration
+	(*Data_DispatchOutbox)(nil), // 7: ridehailing.conf.Data.DispatchOutbox
+	(*durationpb.Duration)(nil), // 8: google.protobuf.Duration
 }
 var file_internal_conf_conf_proto_depIdxs = []int32{
 	1,  // 0: ridehailing.conf.Bootstrap.server:type_name -> ridehailing.conf.Server
@@ -522,15 +644,21 @@ var file_internal_conf_conf_proto_depIdxs = []int32{
 	4,  // 3: ridehailing.conf.Server.grpc:type_name -> ridehailing.conf.Server.GRPC
 	5,  // 4: ridehailing.conf.Data.database:type_name -> ridehailing.conf.Data.Database
 	6,  // 5: ridehailing.conf.Data.redis:type_name -> ridehailing.conf.Data.Redis
-	7,  // 6: ridehailing.conf.Server.HTTP.timeout:type_name -> google.protobuf.Duration
-	7,  // 7: ridehailing.conf.Server.GRPC.timeout:type_name -> google.protobuf.Duration
-	7,  // 8: ridehailing.conf.Data.Redis.read_timeout:type_name -> google.protobuf.Duration
-	7,  // 9: ridehailing.conf.Data.Redis.write_timeout:type_name -> google.protobuf.Duration
-	10, // [10:10] is the sub-list for method output_type
-	10, // [10:10] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	7,  // 6: ridehailing.conf.Data.dispatch_outbox:type_name -> ridehailing.conf.Data.DispatchOutbox
+	8,  // 7: ridehailing.conf.Server.HTTP.timeout:type_name -> google.protobuf.Duration
+	8,  // 8: ridehailing.conf.Server.GRPC.timeout:type_name -> google.protobuf.Duration
+	8,  // 9: ridehailing.conf.Data.Redis.read_timeout:type_name -> google.protobuf.Duration
+	8,  // 10: ridehailing.conf.Data.Redis.write_timeout:type_name -> google.protobuf.Duration
+	8,  // 11: ridehailing.conf.Data.DispatchOutbox.request_timeout:type_name -> google.protobuf.Duration
+	8,  // 12: ridehailing.conf.Data.DispatchOutbox.poll_interval:type_name -> google.protobuf.Duration
+	8,  // 13: ridehailing.conf.Data.DispatchOutbox.lease_duration:type_name -> google.protobuf.Duration
+	8,  // 14: ridehailing.conf.Data.DispatchOutbox.reassignment_poll_interval:type_name -> google.protobuf.Duration
+	8,  // 15: ridehailing.conf.Data.DispatchOutbox.order_sync_poll_interval:type_name -> google.protobuf.Duration
+	16, // [16:16] is the sub-list for method output_type
+	16, // [16:16] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_internal_conf_conf_proto_init() }
@@ -544,7 +672,7 @@ func file_internal_conf_conf_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_conf_conf_proto_rawDesc), len(file_internal_conf_conf_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

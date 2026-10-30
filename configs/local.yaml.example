@@ -1,0 +1,13 @@
+data:
+  # 启动前在 PowerShell 执行：$env:DISPATCH_SNOWFLAKE_NODE_ID = "1"
+  # 此值仅保留给本机隔离开发；连接共享环境时必须改用团队分配的唯一值。
+  database:
+    driver: postgres
+    # 复制为已忽略的 configs/local.yaml 后，替换为本机或部署环境的实际 DSN。
+    source: postgresql://module3_test:replace-with-local-password@127.0.0.1:55432/module3_test?sslmode=disable
+  dispatch_outbox:
+    # 模块 4 本机 gRPC 地址；留空时发送器禁用。
+    vehicle_gateway_addr: ""
+    request_timeout: 2s
+    poll_interval: 1s
+    lease_duration: 10s
