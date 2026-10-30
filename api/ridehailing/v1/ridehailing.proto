@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package ridehailing.v1;
+
+option go_package = "github.com/lijayin-0202/radish-ride-service/api/ridehailing/v1;v1";
+
+// ============================================================
+// ride-hailing 服务的 proto 空模板
+// ------------------------------------------------------------
+// 团队按业务模块拆分子目录，例如：
+//   api/ridehailing/v1/order.proto
+//   api/ridehailing/v1/driver.proto
+//   api/ridehailing/v1/passenger.proto
+//
+// 新增后执行（在 ride-hailing 目录下）：
+//   buf dep update
+//   buf generate
+//
+// 约定：service / message 定义完成后，同步提交生成的 *.pb.go。
+// ============================================================
