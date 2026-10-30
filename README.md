@@ -5,6 +5,8 @@ radish-go 仓库下的**独立 go module**：`github.com/lijayin-0202/radish-rid
 登录注册（T0）、实名认证与档案维护（实名、常用地址、紧急联系人）、
 个人中心（券/积分/签到/消息）、登录设备与登录记录，共 23 个 rpc（22 个 HTTP + 1 个仅 gRPC）。
 姓名与身份证号按 UA-T0-09 另存 AES-256-GCM 密文（`pkg/securebox`），密钥由 `RIDE_DATA_KEY` 注入。
+同时已接入**模块3 运营区域、站点与车辆派单**，包含区域/站点管理、自动派单、派单状态回调、
+Outbox 投递、超时扫描与补派工作者；跨模块契约见 `docs/模块3跨模块派单契约.md`。
 
 > 后台服务（gin-vue-admin）位于仓库根目录 `../radish-admin-server`，
 > 本目录**不再内嵌副本**（历史内嵌目录已与根目录逐文件哈希比对一致后移除，
@@ -22,8 +24,9 @@ radish-go 仓库下的**独立 go module**：`github.com/lijayin-0202/radish-rid
 | `api/ridehailing/v1/ridehailing.proto` | proto 模板（仅 syntax / package / go_package + 使用说明） | **空白模板** |
 | `api/ridehailing/v1/ridehailing.pb.go` | 上述 proto 的生成产物 | 生成 |
 | `api/ridehailing/v1/passenger_account.proto` | 模块1 契约：23 个 rpc（22 个 HTTP + 1 个仅 gRPC） | 已实现 |
+| `api/ridehailing/v1/service_area.proto` / `station.proto` / `dispatch_contract.proto` | 模块3 区域、站点与派单契约 | 已实现 |
 | `docs/模块1乘客账号与个人中心接口文档.md` | 模块1 接口/字段/错误码/枚举/表映射说明 | 已维护 |
-| `migrations/` | 模块1 PG 迁移脚本（0001~0006），**需评审后由 DBA 执行，服务不自动迁移** | 已交付 |
+| `migrations/` | 模块1与模块3 PostgreSQL 迁移脚本，**需评审后由 DBA 执行，服务不自动迁移** | 已交付 |
 | `configs/config.yaml` | 运行配置：HTTP `:8000`、gRPC `:9000`、数据源 | 保留 |
 | `internal/conf/conf.proto` | `Bootstrap / Server / Data` 配置结构 | 保留 |
 | `internal/conf/conf.pb.go` | 配置结构生成代码 | 生成 |

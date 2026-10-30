@@ -17,6 +17,7 @@ import (
 	"github.com/go-kratos/kratos/v2/transport/http"
 
 	"github.com/lijayin-0202/radish-ride-service/internal/conf"
+	"github.com/lijayin-0202/radish-ride-service/internal/data"
 )
 
 // go build -ldflags "-X main.Version=x.y.z"
@@ -35,7 +36,15 @@ func init() {
 }
 
 // newApp 组装 kratos 应用：ID/名称/版本/日志/传输层服务。
-func newApp(logger log.Logger, hs *http.Server, gs *grpc.Server) *kratos.App {
+func newApp(
+	logger log.Logger,
+	hs *http.Server,
+	gs *grpc.Server,
+	dispatcher *data.DispatchOutboxDispatcher,
+	orderDispatcher *data.OrderDispatchOutboxDispatcher,
+	timeoutWorker *data.DispatchTimeoutWorker,
+	reassignmentDispatcher *data.DispatchReassignmentDispatcher,
+) *kratos.App {
 	return kratos.New(
 		kratos.ID(serviceID()),
 		kratos.Name(Name),
@@ -44,6 +53,15 @@ func newApp(logger log.Logger, hs *http.Server, gs *grpc.Server) *kratos.App {
 		kratos.Logger(logger),
 		// HTTP 与 gRPC 双协议同时注册（AGENT.md §2）。
 		kratos.Server(hs, gs),
+		// 模块3 后台工作者由应用生命周期统一启动和停止。
+		kratos.AfterStart(dispatcher.Start),
+		kratos.AfterStart(orderDispatcher.Start),
+		kratos.AfterStart(timeoutWorker.Start),
+		kratos.AfterStart(reassignmentDispatcher.Start),
+		kratos.BeforeStop(dispatcher.Stop),
+		kratos.BeforeStop(orderDispatcher.Stop),
+		kratos.BeforeStop(timeoutWorker.Stop),
+		kratos.BeforeStop(reassignmentDispatcher.Stop),
 	)
 }
 

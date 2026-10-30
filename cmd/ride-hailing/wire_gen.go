@@ -41,12 +41,12 @@ func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger) (*
 	notificationUsecase := biz.NewNotificationUsecase(notificationRepo, logger)
 	realNameRepo := data.NewRealNameRepo(dataData, logger)
 	realNameSalt := biz.ProvideRealNameSalt()
-	realNameBox, err := biz.ProvideRealNameBox()
+	box, err := biz.ProvideRealNameBox()
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	realNameUsecase, err := biz.NewRealNameUsecase(realNameRepo, passengerRepo, realNameSalt, realNameBox, logger)
+	realNameUsecase, err := biz.NewRealNameUsecase(realNameRepo, passengerRepo, realNameSalt, box, logger)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
@@ -57,9 +57,26 @@ func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger) (*
 	emergencyContactRepo := data.NewEmergencyContactRepo(dataData, logger)
 	emergencyContactUsecase := biz.NewEmergencyContactUsecase(emergencyContactRepo, logger)
 	passengerAccountService := service.NewPassengerAccountService(authUsecase, passengerUsecase, addressUsecase, couponUsecase, pointUsecase, notificationUsecase, realNameUsecase, loginDeviceUsecase, emergencyContactUsecase, logger)
-	httpServer := server.NewHTTPServer(confServer, logger, passengerAccountService)
-	grpcServer := server.NewGRPCServer(confServer, logger, passengerAccountService)
-	app := newApp(logger, httpServer, grpcServer)
+	stationRepository := data.NewStationRepository(dataData)
+	serviceAreaRepository := data.NewServiceAreaRepository(dataData)
+	stationUsecase := biz.NewStationUsecase(stationRepository, serviceAreaRepository)
+	stationService := service.NewStationService(stationUsecase)
+	serviceAreaAdminUsecase := biz.NewServiceAreaAdminUsecase(serviceAreaRepository)
+	serviceAreaAdminService := service.NewServiceAreaAdminService(serviceAreaAdminUsecase)
+	orderDispatchQueryGateway := data.NewConfiguredOrderQueryGateway(confData)
+	dispatchRepository := data.NewDispatchRepository(dataData)
+	clock := biz.NewSystemClock()
+	autoDispatchUsecase := biz.NewAutoDispatchUsecase(orderDispatchQueryGateway, dispatchRepository, clock)
+	dispatchService := service.NewDispatchService(autoDispatchUsecase)
+	httpServer := server.NewHTTPServer(confServer, logger, passengerAccountService, stationService, serviceAreaAdminService, dispatchService)
+	dispatchStateUsecase := biz.NewDispatchStateUsecase(dispatchRepository, clock)
+	dispatchCallbackService := service.NewDispatchCallbackService(dispatchStateUsecase)
+	grpcServer := server.NewGRPCServer(confServer, logger, passengerAccountService, stationService, serviceAreaAdminService, dispatchCallbackService)
+	dispatchOutboxDispatcher := data.NewDispatchOutboxDispatcher(confData, dispatchRepository, logger)
+	orderDispatchOutboxDispatcher := data.NewOrderDispatchOutboxDispatcher(confData, dispatchRepository, logger)
+	dispatchTimeoutWorker := data.NewDispatchTimeoutWorker(confData, dispatchStateUsecase, logger)
+	dispatchReassignmentDispatcher := data.NewDispatchReassignmentDispatcher(confData, dispatchRepository, autoDispatchUsecase, logger)
+	app := newApp(logger, httpServer, grpcServer, dispatchOutboxDispatcher, orderDispatchOutboxDispatcher, dispatchTimeoutWorker, dispatchReassignmentDispatcher)
 	return app, func() {
 		cleanup()
 	}, nil

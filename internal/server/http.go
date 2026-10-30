@@ -21,6 +21,9 @@ func NewHTTPServer(
 	c *conf.Server,
 	logger log.Logger,
 	passengerAccount *service.PassengerAccountService,
+	stationService *service.StationService,
+	serviceAreaAdminService *service.ServiceAreaAdminService,
+	dispatchService *service.DispatchService,
 ) *http.Server {
 	// 中间件顺序：panic 兜底 → 链路追踪 → 请求日志；并挂统一响应/错误编码器。
 	opts := []http.ServerOption{
@@ -50,6 +53,10 @@ func NewHTTPServer(
 	// 任务号：UA-T0-01~09（登录/实名）、UA-T1-01（地址）、UA-T2（个人中心/档案维护）
 	// 约定（agent/07 §1）：共享注册文件只追加本模块的注册行与注释，避免多人覆盖。
 	v1.RegisterPassengerAccountHTTPServer(srv, passengerAccount)
+	// 模块3 运营区域、站点与自动派单。
+	v1.RegisterStationServiceHTTPServer(srv, stationService)
+	v1.RegisterServiceAreaAdminServiceHTTPServer(srv, serviceAreaAdminService)
+	v1.RegisterDispatchServiceHTTPServer(srv, dispatchService)
 
 	return srv
 }
