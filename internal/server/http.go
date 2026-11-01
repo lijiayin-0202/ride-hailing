@@ -7,11 +7,13 @@ import (
 	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/transport/http"
 
+	v1 "github.com/lijayin-0202/radish-ride-service/api/ridehailing/v1"
 	"github.com/lijayin-0202/radish-ride-service/internal/conf"
+	"github.com/lijayin-0202/radish-ride-service/internal/service"
 )
 
-// NewHTTPServer 创建 kratos HTTP 服务（空脚手架，暂未注册业务路由）。
-func NewHTTPServer(c *conf.Server, logger log.Logger) *http.Server {
+// NewHTTPServer 创建 kratos HTTP 服务并注册车辆 HMI 路由。
+func NewHTTPServer(c *conf.Server, logger log.Logger, vehicleHMI *service.VehicleHMIService) *http.Server {
 	opts := []http.ServerOption{
 		http.Middleware(
 			recovery.Recovery(),
@@ -30,9 +32,6 @@ func NewHTTPServer(c *conf.Server, logger log.Logger) *http.Server {
 	}
 
 	srv := http.NewServer(opts...)
-
-	// TODO(团队): 实现 service 后在此注册 HTTP 路由，例如：
-	// v1.RegisterOrderHTTPServer(srv, orderService)
-
+	v1.RegisterVehicleHMIServiceHTTPServer(srv, vehicleHMI)
 	return srv
 }

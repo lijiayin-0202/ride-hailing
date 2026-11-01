@@ -11,4 +11,4 @@ import "github.com/google/wire"
 // 新增用例后在此登记，例如：
 //
 //	var ProviderSet = wire.NewSet(NewOrderUsecase)
-var ProviderSet = wire.NewSet()
+var ProviderSet = wire.NewSet(NewVehicleHMIUsecase)

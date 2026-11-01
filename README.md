@@ -1,7 +1,7 @@
-# ride-hailing（子项目二：打车微服务 · Kratos 空脚手架）
+# ride-hailing（子项目二：打车微服务）
 
 radish-go 仓库下的**独立 go module**：`github.com/lijayin-0202/radish-ride-service`。
-由 `kratos new` 标准布局裁剪而来，当前是**不含任何业务逻辑的纯净脚手架**，用于团队后续按模块填充打车业务。
+由 `kratos new` 标准布局裁剪而来，当前已接入模块四“车辆端与车内 HMI 交互”。
 
 > 本目录**不包含 kratos 框架源码**，全部依赖由 `go.mod` 从远端拉取（`github.com/go-kratos/kratos/v2`）。
 
@@ -17,11 +17,11 @@ radish-go 仓库下的**独立 go module**：`github.com/lijayin-0202/radish-rid
 | `configs/config.yaml` | 运行配置：HTTP `:8000`、gRPC `:9000`、数据源 | 保留 |
 | `internal/conf/conf.proto` | `Bootstrap / Server / Data` 配置结构 | 保留 |
 | `internal/conf/conf.pb.go` | 配置结构生成代码 | 生成 |
-| `internal/biz/biz.go` | 用例层 `ProviderSet` | **空模板** |
-| `internal/data/data.go` | 数据层 `Data` 结构 + `NewData` + `cleanup` | **空模板** |
-| `internal/service/service.go` | 服务层 `ProviderSet` | **空模板** |
-| `internal/server/http.go` | HTTP Server + 中间件，路由注册处留 TODO | 空注册 |
-| `internal/server/grpc.go` | gRPC Server + 中间件，服务注册处留 TODO | 空注册 |
+| `internal/biz/` | 车辆 HMI 领域实体、状态机与用例 | 已实现 |
+| `internal/data/` | PostgreSQL Repo 与 Kafka 生产者封装 | 已实现 |
+| `internal/service/` | 车辆 HMI proto 服务实现 | 已实现 |
+| `internal/server/http.go` | HTTP Server 与模块四路由注册 | 已注册 |
+| `internal/server/grpc.go` | gRPC Server 与模块四服务注册 | 已注册 |
 | `internal/server/server.go` | `ProviderSet` | 保留 |
 | `buf.yaml` / `buf.gen.yaml` / `buf.lock` | protobuf 生成配置与依赖锁定 | 保留 |
 | `Makefile` | `init / api / build / run / test / lint / generate / docker` | 保留 |
@@ -92,5 +92,5 @@ go test ./... -cover                              # 或 make test
 
 ## 当前接口清单
 
-**空脚手架，尚未注册任何 HTTP / gRPC 业务接口。**
-HTTP 监听 `:8000`、gRPC 监听 `:9000`，均只挂载了 `recovery / tracing / logging` 中间件，等待第一步「定义接口」后填充。
+模块四已注册车辆指令、上车校验、遥测、故障、HMI 聚合视图、远程协助和媒体记录接口。
+具体路径、状态机、重试规则和联调前置见 `docs/vehicle-hmi-module.md`。

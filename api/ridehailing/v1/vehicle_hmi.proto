@@ -1,0 +1,241 @@
+syntax = "proto3";
+
+package ridehailing.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/lijayin-0202/radish-ride-service/api/ridehailing/v1;v1";
+
+// VehicleHMIService 提供车辆端与车内 HMI 的指令、核验和状态交互接口。
+service VehicleHMIService {
+  // GetPendingCommands 获取车辆待执行或等待确认的指令。
+  rpc GetPendingCommands(GetPendingCommandsRequest) returns (GetPendingCommandsResponse) {
+    option (google.api.http) = {get: "/api/v1/vehicle/commands/pending"};
+  }
+  // AckCommand 确认车辆已经收到指定指令。
+  rpc AckCommand(AckCommandRequest) returns (AckCommandResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/vehicle/commands/{command_no}/ack"
+      body: "*"
+    };
+  }
+  // ReportCommandResult 上报车辆指令的最终执行结果。
+  rpc ReportCommandResult(ReportCommandResultRequest) returns (ReportCommandResultResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/vehicle/commands/{command_no}/result"
+      body: "*"
+    };
+  }
+  // VerifyBoarding 记录乘客上车核验结果。
+  rpc VerifyBoarding(VerifyBoardingRequest) returns (VerifyBoardingResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/vehicle/orders/{order_id}/boarding-verifications"
+      body: "*"
+    };
+  }
+  // ReportTelemetry 上报车辆位置、状态和实时遥测信息。
+  rpc ReportTelemetry(ReportTelemetryRequest) returns (ReportTelemetryResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/vehicle/telemetry"
+      body: "*"
+    };
+  }
+  // ReportFault 上报车辆故障及故障现场快照。
+  rpc ReportFault(ReportFaultRequest) returns (ReportFaultResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/vehicle/faults"
+      body: "*"
+    };
+  }
+  // GetHMIView 获取订单、车辆、费用和安全信息的 HMI 聚合视图。
+  rpc GetHMIView(GetHMIViewRequest) returns (GetHMIViewResponse) {
+    option (google.api.http) = {get: "/api/v1/vehicle/orders/{order_id}/hmi-view"};
+  }
+  // RequestAssistance 提交靠边停车或远程协助请求。
+  rpc RequestAssistance(RequestAssistanceRequest) returns (RequestAssistanceResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/vehicle/orders/{order_id}/assistance"
+      body: "*"
+    };
+  }
+  // ReportMediaRecord 登记车辆媒体文件的存储元数据。
+  rpc ReportMediaRecord(ReportMediaRecordRequest) returns (ReportMediaRecordResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/vehicle/media-records"
+      body: "*"
+    };
+  }
+}
+
+// VehicleCommand 表示下发给车辆的一条控制或任务指令。
+message VehicleCommand {
+  string command_no = 1;
+  int64 vehicle_id = 2;
+  int64 related_order_id = 3;
+  int32 command_type = 4;
+  google.protobuf.Struct command_payload = 5;
+  int32 priority = 6;
+  int32 status = 7;
+  google.protobuf.Timestamp issued_at = 8;
+  google.protobuf.Timestamp acknowledged_at = 9;
+  google.protobuf.Timestamp finished_at = 10;
+  string result_message = 11;
+}
+
+// GetPendingCommandsRequest 指定要查询指令的车辆和可选指令编号。
+message GetPendingCommandsRequest {
+  int64 vehicle_id = 1;
+  string command_no = 2;
+}
+
+// GetPendingCommandsResponse 返回当前车辆可拉取的指令列表。
+message GetPendingCommandsResponse {
+  repeated VehicleCommand commands = 1;
+}
+
+// AckCommandRequest 指定需要确认接收的指令编号。
+message AckCommandRequest {
+  string command_no = 1;
+}
+
+// ReportCommandResultRequest 携带指令成功或失败的执行结果。
+message ReportCommandResultRequest {
+  string command_no = 1;
+  bool succeeded = 2;
+  string result_message = 3;
+}
+
+// AckCommandResponse 返回确认后的最新指令状态。
+message AckCommandResponse {
+  VehicleCommand command = 1;
+}
+
+// ReportCommandResultResponse 返回结果入库后的最新指令状态。
+message ReportCommandResultResponse {
+  VehicleCommand command = 1;
+}
+
+// VerifyBoardingRequest 携带订单上车核验方式和凭证摘要。
+message VerifyBoardingRequest {
+  int64 order_id = 1;
+  int32 verification_type = 2;
+  string credential_hash = 3;
+  bool succeeded = 4;
+  string failure_reason = 5;
+}
+
+// VerifyBoardingResponse 返回本次上车核验的记录结果。
+message VerifyBoardingResponse {
+  int32 attempt_result = 1;
+  string failure_reason = 2;
+  google.protobuf.Timestamp verified_at = 3;
+}
+
+// ReportTelemetryRequest 携带车辆位置、运行状态和车内遥测数据。
+message ReportTelemetryRequest {
+  int64 vehicle_id = 1;
+  int64 related_order_id = 2;
+  double longitude = 3;
+  double latitude = 4;
+  double speed_kmh = 5;
+  int32 operation_status = 6;
+  int32 online_status = 7;
+  double battery_percent = 8;
+  string software_version = 9;
+  google.protobuf.Struct telemetry_data = 10;
+  double heading_degree = 11;
+  double position_accuracy_m = 12;
+  double route_progress_percent = 13;
+  double remaining_distance_km = 14;
+  google.protobuf.Timestamp eta_at = 15;
+  double remaining_range_km = 16;
+  google.protobuf.Struct door_status = 17;
+  google.protobuf.Struct seat_status = 18;
+  double cabin_temperature = 19;
+  int32 network_signal = 20;
+  repeated string warning_codes = 21;
+}
+
+// ReportTelemetryResponse 返回服务端接受遥测数据的时间。
+message ReportTelemetryResponse {
+  google.protobuf.Timestamp reported_at = 1;
+}
+
+// ReportFaultRequest 携带故障编号、等级、描述和快照数据。
+message ReportFaultRequest {
+  int64 vehicle_id = 1;
+  string fault_code = 2;
+  int32 fault_level = 3;
+  string fault_description = 4;
+  google.protobuf.Struct fault_data = 5;
+  int32 status = 6;
+  string fault_no = 7;
+  int64 related_order_id = 8;
+  google.protobuf.Timestamp occurred_at = 9;
+}
+
+// ReportFaultResponse 返回故障上报的记录时间。
+message ReportFaultResponse {
+  google.protobuf.Timestamp reported_at = 1;
+}
+
+// GetHMIViewRequest 指定需要展示的订单。
+message GetHMIViewRequest {
+  int64 order_id = 1;
+}
+
+// HMISafetyIncident 表示 HMI 需要提示的未关闭安全事件。
+message HMISafetyIncident {
+  string incident_no = 1;
+  int32 incident_type = 2;
+  int32 severity = 3;
+  string description = 4;
+  int32 status = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// GetHMIViewResponse 汇总订单、车辆、费用、指令和安全信息。
+message GetHMIViewResponse {
+  int64 order_id = 1;
+  int32 order_status = 2;
+  int64 vehicle_id = 3;
+  google.protobuf.Struct pickup_snapshot = 4;
+  google.protobuf.Struct dropoff_snapshot = 5;
+  repeated VehicleCommand pending_commands = 6;
+  double estimated_amount = 7;
+  double payable_amount = 8;
+  repeated HMISafetyIncident safety_incidents = 9;
+}
+
+// RequestAssistanceRequest 携带车辆的协助类型和原因。
+message RequestAssistanceRequest {
+  int64 order_id = 1;
+  int64 vehicle_id = 2;
+  int32 assistance_type = 3;
+  string reason = 4;
+}
+
+// RequestAssistanceResponse 返回协助请求的受理时间。
+message RequestAssistanceResponse {
+  google.protobuf.Timestamp requested_at = 1;
+}
+
+// ReportMediaRecordRequest 登记媒体文件位置、时间范围和访问级别。
+message ReportMediaRecordRequest {
+  int64 vehicle_id = 1;
+  int64 related_order_id = 2;
+  int32 media_type = 3;
+  string storage_key = 4;
+  google.protobuf.Timestamp started_at = 5;
+  int64 file_size_bytes = 6;
+  google.protobuf.Timestamp ended_at = 7;
+  google.protobuf.Timestamp retention_until = 8;
+  int32 access_level = 9;
+}
+
+// ReportMediaRecordResponse 返回媒体元数据的记录时间。
+message ReportMediaRecordResponse {
+  google.protobuf.Timestamp recorded_at = 1;
+}

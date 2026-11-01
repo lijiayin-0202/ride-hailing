@@ -12,4 +12,4 @@ import "github.com/google/wire"
 // 新增服务后在此登记，例如：
 //
 //	var ProviderSet = wire.NewSet(NewOrderService)
-var ProviderSet = wire.NewSet()
+var ProviderSet = wire.NewSet(NewVehicleHMIService)
