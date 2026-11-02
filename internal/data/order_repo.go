@@ -188,6 +188,12 @@ func (r *rideRepo) transitionOrder(tx *gorm.DB, locked *OrderRow, command *biz.O
 		}
 	} else if command.Type == "UNLOCK_AND_START" {
 		updates["started_at"] = time.Now()
+	} else if command.Type == "MARK_ARRIVED" {
+		updates["arrived_at"] = time.Now()
+	} else if command.Type == "START_TRIP" {
+		updates["started_at"] = time.Now()
+	} else if command.Type == "COMPLETE_TRIP" {
+		updates["completed_at"] = time.Now()
 	}
 	result := tx.Model(&OrderRow{}).
 		Where("id = ? AND passenger_id = ? AND status = ?", command.OrderID, command.PassengerID, int16(command.CurrentStatus)).Updates(updates)

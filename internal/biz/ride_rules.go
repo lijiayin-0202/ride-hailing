@@ -78,6 +78,26 @@ func calculateFare(rule PricingRule, distance int32, coupon *Coupon) Fare {
 
 func commandTarget(current OrderStatus, commandType string) (OrderStatus, error) {
 	switch commandType {
+	case "DISPATCH":
+		if current != OrderStatusMatching {
+			return current, fmt.Errorf("%w: order is not matching", ErrConflict)
+		}
+		return OrderStatusPickingUp, nil
+	case "MARK_ARRIVED":
+		if current != OrderStatusPickingUp {
+			return current, fmt.Errorf("%w: vehicle is not picking up", ErrConflict)
+		}
+		return OrderStatusArrived, nil
+	case "START_TRIP":
+		if current != OrderStatusArrived {
+			return current, fmt.Errorf("%w: vehicle has not arrived", ErrConflict)
+		}
+		return OrderStatusInTrip, nil
+	case "COMPLETE_TRIP":
+		if current != OrderStatusInTrip {
+			return current, fmt.Errorf("%w: trip is not in progress", ErrConflict)
+		}
+		return OrderStatusCompleted, nil
 	case "CANCEL":
 		if current > OrderStatusArrived {
 			return current, fmt.Errorf("%w: order cannot be cancelled", ErrConflict)

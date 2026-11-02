@@ -15,6 +15,11 @@ func TestCommandTarget(t *testing.T) {
 		wantErr     error
 	}{
 		{name: "cancel matching", current: OrderStatusMatching, commandType: "CANCEL", want: OrderStatusCancelled},
+		{name: "dispatch matching", current: OrderStatusMatching, commandType: "DISPATCH", want: OrderStatusPickingUp},
+		{name: "arrive picking up", current: OrderStatusPickingUp, commandType: "MARK_ARRIVED", want: OrderStatusArrived},
+		{name: "start trip", current: OrderStatusArrived, commandType: "START_TRIP", want: OrderStatusInTrip},
+		{name: "complete trip", current: OrderStatusInTrip, commandType: "COMPLETE_TRIP", want: OrderStatusCompleted},
+		{name: "reject early arrival", current: OrderStatusMatching, commandType: "MARK_ARRIVED", want: OrderStatusMatching, wantErr: ErrConflict},
 		{name: "start after arrival", current: OrderStatusArrived, commandType: "UNLOCK_AND_START", want: OrderStatusInTrip},
 		{name: "reject early start", current: OrderStatusPickingUp, commandType: "UNLOCK_AND_START", want: OrderStatusPickingUp, wantErr: ErrConflict},
 		{name: "pull over in trip", current: OrderStatusInTrip, commandType: "REQUEST_PULL_OVER", want: OrderStatusInTrip},
