@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
+	"github.com/go-kratos/kratos/v2/config/env"
 	"github.com/go-kratos/kratos/v2/config/file"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/tracing"
@@ -60,7 +61,7 @@ func main() {
 	)
 
 	c := config.New(
-		config.WithSource(file.NewSource(flagconf)),
+		config.WithSource(file.NewSource(flagconf), env.NewSource("RIDE")),
 	)
 	defer c.Close()
 
@@ -71,6 +72,24 @@ func main() {
 	var bc conf.Bootstrap
 	if err := c.Scan(&bc); err != nil {
 		panic(err)
+	}
+	if source := os.Getenv("RIDE_DATA_DATABASE_SOURCE"); source != "" {
+		if bc.Data == nil {
+			bc.Data = &conf.Data{}
+		}
+		if bc.Data.Database == nil {
+			bc.Data.Database = &conf.Data_Database{Driver: "postgres"}
+		}
+		bc.Data.Database.Source = source
+	}
+	if key := os.Getenv("RIDE_DATA_SECURITY_CONTACT_PHONE_KEY"); key != "" {
+		if bc.Data == nil {
+			bc.Data = &conf.Data{}
+		}
+		if bc.Data.Security == nil {
+			bc.Data.Security = &conf.Data_Security{}
+		}
+		bc.Data.Security.ContactPhoneKey = key
 	}
 
 	app, cleanup, err := wireApp(bc.Server, bc.Data, logger)

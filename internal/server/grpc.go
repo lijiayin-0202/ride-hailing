@@ -7,11 +7,12 @@ import (
 	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 
+	v1 "github.com/lijayin-0202/radish-ride-service/api/ridehailing/v1"
 	"github.com/lijayin-0202/radish-ride-service/internal/conf"
+	"github.com/lijayin-0202/radish-ride-service/internal/service"
 )
 
-// NewGRPCServer 创建 kratos gRPC 服务（空脚手架，暂未注册业务服务）。
-func NewGRPCServer(c *conf.Server, logger log.Logger) *grpc.Server {
+func NewGRPCServer(c *conf.Server, logger log.Logger, rideService *service.RideService) *grpc.Server {
 	opts := []grpc.ServerOption{
 		grpc.Middleware(
 			recovery.Recovery(),
@@ -30,9 +31,7 @@ func NewGRPCServer(c *conf.Server, logger log.Logger) *grpc.Server {
 	}
 
 	srv := grpc.NewServer(opts...)
-
-	// TODO(团队): 实现 service 后在此注册 gRPC 服务，例如：
-	// v1.RegisterOrderServer(srv, orderService)
+	v1.RegisterRideServiceServer(srv, rideService)
 
 	return srv
 }

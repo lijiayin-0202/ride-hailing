@@ -37,6 +37,10 @@ message Data {
     google.protobuf.Duration read_timeout = 3;
     google.protobuf.Duration write_timeout = 4;
   }
+  message Security {
+    string contact_phone_key = 1;
+  }
   Database database = 1;
   Redis redis = 2;
+  Security security = 3;
 }

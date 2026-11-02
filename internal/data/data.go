@@ -1,37 +1,47 @@
 package data
 
 import (
+	"fmt"
+
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/wire"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
 	"github.com/lijayin-0202/radish-ride-service/internal/conf"
 )
 
-// ProviderSet is data providers.
-var ProviderSet = wire.NewSet(NewData)
+var ProviderSet = wire.NewSet(NewData, NewRideRepo)
 
-// Data 数据层资源集合（空模板，预留位置）。
-//
-// 团队接入 MySQL / Redis / MQ 时，把客户端挂到本结构体上，例如：
-//
-//	type Data struct {
-//	    db    *gorm.DB
-//	    redis *redis.Client
-//	    log   *log.Helper
-//	}
 type Data struct {
-	log *log.Helper
+	db       *gorm.DB
+	log      *log.Helper
+	phoneKey string
 }
 
-// NewData 初始化数据层连接，返回清理函数用于优雅退出。
 func NewData(c *conf.Data, logger log.Logger) (*Data, func(), error) {
 	helper := log.NewHelper(logger)
-
-	// TODO(团队): 依据 c.GetDatabase() / c.GetRedis() 建立连接
-
-	cleanup := func() {
-		// TODO(团队): 关闭 db / redis 等资源
-		helper.Info("closing the data resources")
+	database := c.GetDatabase()
+	if database.GetDriver() != "postgres" || database.GetSource() == "" {
+		return nil, nil, fmt.Errorf("postgres database source is required")
 	}
-	return &Data{log: helper}, cleanup, nil
+	phoneKey := c.GetSecurity().GetContactPhoneKey()
+	if len(phoneKey) < 32 {
+		return nil, nil, fmt.Errorf("contact phone encryption key must be at least 32 bytes")
+	}
+	db, err := gorm.Open(postgres.Open(database.GetSource()), &gorm.Config{TranslateError: true})
+	if err != nil {
+		return nil, nil, fmt.Errorf("open postgres: %w", err)
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, nil, fmt.Errorf("get postgres connection: %w", err)
+	}
+	cleanup := func() {
+		helper.Info("closing the data resources")
+		if err := sqlDB.Close(); err != nil {
+			helper.Errorf("close postgres: %v", err)
+		}
+	}
+	return &Data{db: db, log: helper, phoneKey: phoneKey}, cleanup, nil
 }

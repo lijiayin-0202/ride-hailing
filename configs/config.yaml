@@ -2,17 +2,21 @@ server:
   http:
     network: tcp
     addr: 0.0.0.0:8000
-    timeout: 1s
+    timeout: 5s
   grpc:
     network: tcp
     addr: 0.0.0.0:9000
-    timeout: 1s
+    timeout: 5s
 data:
   database:
-    driver: mysql
-    source: root:root@tcp(127.0.0.1:3306)/ride_hailing?parseTime=true
+    driver: postgres
+    # 运行时由 RIDE_DATA_DATABASE_SOURCE 注入，禁止在仓库中保存线上凭据。
+    source: ""
   redis:
     network: tcp
     addr: 127.0.0.1:6379
     read_timeout: 0.2s
     write_timeout: 0.2s
+  security:
+    # 运行时由 RIDE_DATA_SECURITY_CONTACT_PHONE_KEY 注入。
+    contact_phone_key: ""

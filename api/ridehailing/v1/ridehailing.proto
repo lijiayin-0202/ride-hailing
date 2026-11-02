@@ -2,19 +2,46 @@ syntax = "proto3";
 
 package ridehailing.v1;
 
+import "google/api/annotations.proto";
+
 option go_package = "github.com/lijayin-0202/radish-ride-service/api/ridehailing/v1;v1";
 
-// ============================================================
-// ride-hailing 服务的 proto 空模板
-// ------------------------------------------------------------
-// 团队按业务模块拆分子目录，例如：
-//   api/ridehailing/v1/order.proto
-//   api/ridehailing/v1/driver.proto
-//   api/ridehailing/v1/passenger.proto
-//
-// 新增后执行（在 ride-hailing 目录下）：
-//   buf dep update
-//   buf generate
-//
-// 约定：service / message 定义完成后，同步提交生成的 *.pb.go。
-// ============================================================
+service RideService {
+  rpc EstimateFare(EstimateFareRequest) returns (EstimateFareReply) { option (google.api.http) = { post: "/api/v1/ride/quotes" body: "*" }; }
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderReply) { option (google.api.http) = { post: "/api/v1/orders" body: "*" }; }
+  rpc ListOrderHistory(ListOrderHistoryRequest) returns (ListOrderHistoryReply) { option (google.api.http) = { get: "/api/v1/orders/history" }; }
+  rpc GetOrder(GetOrderRequest) returns (OrderDetailReply) { option (google.api.http) = { get: "/api/v1/orders/{order_id}" }; }
+  rpc StreamOrderEvents(StreamOrderEventsRequest) returns (stream OrderEvent) { option (google.api.http) = { get: "/api/v1/orders/{order_id}/events" }; }
+  rpc ExecuteOrderCommand(ExecuteOrderCommandRequest) returns (ExecuteOrderCommandReply) { option (google.api.http) = { post: "/api/v1/orders/{order_id}/commands" body: "*" }; }
+  rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentReply) { option (google.api.http) = { post: "/api/v1/orders/{order_id}/payments" body: "*" }; }
+  rpc SubmitReview(SubmitReviewRequest) returns (SubmitReviewReply) { option (google.api.http) = { post: "/api/v1/orders/{order_id}/review" body: "*" }; }
+}
+
+message Place { string place_id = 1; string name = 2; string address = 3; double longitude = 4; double latitude = 5; }
+message RouteSummary { string origin_name = 1; string destination_name = 2; int32 distance_meters = 3; int32 estimated_duration_seconds = 4; string polyline = 5; }
+message FareItem { string type = 1; string name = 2; double amount = 3; }
+message Fare { double original_amount = 1; double discount_amount = 2; double payable_amount = 3; string currency = 4; repeated FareItem breakdown = 5; string payment_status = 6; }
+message AppliedCoupon { string coupon_id = 1; string coupon_name = 2; double discount_amount = 3; string valid_until = 4; }
+message EstimateFareRequest { string city_code = 1; string ride_mode = 2; string scheduled_at = 3; Place origin = 4; Place destination = 5; string coupon_id = 6; }
+message ServiceQuote { string service_type_id = 1; string display_name = 2; repeated string tags = 3; int32 seat_count = 4; int32 pickup_eta_seconds = 5; Fare fare = 6; }
+message EstimateFareReply { string quote_token = 1; string expires_at = 2; RouteSummary route = 3; repeated ServiceQuote quotes = 4; AppliedCoupon applied_coupon = 5; }
+message CreateOrderRequest { string quote_token = 1; string service_type_id = 2; int32 passenger_count = 3; string contact_phone = 4; string user_agreement_version = 5; }
+message MatchingInfo { int32 scanned_vehicle_count = 1; int32 estimated_match_seconds = 2; }
+message CreateOrderReply { string order_id = 1; string order_no = 2; string status = 3; MatchingInfo matching = 4; RouteSummary route_summary = 5; Fare estimated_fare = 6; string event_stream_url = 7; }
+message GetOrderRequest { string order_id = 1; }
+message VehicleInfo { string vehicle_id = 1; string plate_no = 2; string model = 3; string service_type_name = 4; string body_no = 5; string color = 6; int32 battery_percent = 7; }
+message PickupInfo { int32 eta_seconds = 1; string arrived_at = 2; string wait_deadline = 3; string boarding_code_suffix = 4; }
+message TripProgress { int32 remaining_distance_meters = 1; int32 remaining_duration_seconds = 2; double speed_kmh = 3; int32 progress_percent = 4; }
+message OrderDetailReply { string order_id = 1; string order_no = 2; string status = 3; string status_text = 4; int32 step = 5; VehicleInfo vehicle = 6; PickupInfo pickup = 7; RouteSummary route = 8; TripProgress trip_progress = 9; Fare fare = 10; repeated string available_actions = 11; string last_event_id = 12; }
+message StreamOrderEventsRequest { string order_id = 1; string last_event_id = 2; }
+message OrderEvent { string event_id = 1; string event_type = 2; string occurred_at = 3; string order_status = 4; string status_text = 5; double longitude = 6; double latitude = 7; double speed_kmh = 8; }
+message ExecuteOrderCommandRequest { string order_id = 1; string command_type = 2; string boarding_code = 3; string reason_code = 4; double client_longitude = 5; double client_latitude = 6; }
+message RefundPreview { double amount = 1; string currency = 2; string rule_description = 3; }
+message ExecuteOrderCommandReply { string command_id = 1; bool accepted = 2; string order_status = 3; string status_text = 4; RefundPreview refund_preview = 5; }
+message CreatePaymentRequest { string order_id = 1; string payment_method = 2; }
+message CreatePaymentReply { string payment_id = 1; string payment_no = 2; double amount = 3; string currency = 4; string payment_status = 5; }
+message SubmitReviewRequest { string order_id = 1; int32 rating = 2; repeated string tag_codes = 3; string comment = 4; }
+message SubmitReviewReply { string review_id = 1; string submitted_at = 2; }
+message ListOrderHistoryRequest { string cursor = 1; int32 page_size = 2; string status_group = 3; }
+message OrderHistoryItem { string order_id = 1; string order_no = 2; string origin_name = 3; string destination_name = 4; string departure_at = 5; string vehicle_display_name = 6; double paid_amount = 7; string currency = 8; string status = 9; string status_text = 10; }
+message ListOrderHistoryReply { repeated OrderHistoryItem items = 1; string next_cursor = 2; bool has_more = 3; }
