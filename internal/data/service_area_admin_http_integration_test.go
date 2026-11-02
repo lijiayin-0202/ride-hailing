@@ -45,7 +45,7 @@ func createAreaOverHTTP(t *testing.T, baseURL, unique string) int64 {
 		"area_code": "UAT-" + unique, "area_name": "验收运营区域", "city_code": "uat",
 		"city_name": "验收城市", "boundary_geojson": "{}", "status": "SERVICE_AREA_STATUS_OPERATING",
 	})
-	return nestedID(t, reply, "serviceArea")
+	return nestedID(t, reply, "service_area")
 }
 
 func replaceSchedulesOverHTTP(t *testing.T, baseURL string, areaID int64) {
@@ -69,7 +69,7 @@ func disableStationOverHTTP(t *testing.T, baseURL string, stationID int64) {
 	t.Helper()
 	reply := requestJSON(t, http.MethodPatch, baseURL+"/v1/admin/stations/"+strconv.FormatInt(stationID, 10)+"/status", map[string]any{"status": 0})
 	station, ok := reply["station"].(map[string]any)
-	if !ok || station["status"] != float64(0) {
+	if !ok || idString(station["status"]) != "0" {
 		t.Fatalf("disabled station reply = %#v, want status 0", reply)
 	}
 }
@@ -83,7 +83,7 @@ func assertDisabledStationListed(t *testing.T, baseURL string, areaID, stationID
 	}
 	for _, value := range stations {
 		station, ok := value.(map[string]any)
-		if ok && idString(station["id"]) == strconv.FormatInt(stationID, 10) && station["status"] == float64(0) {
+		if ok && idString(station["id"]) == strconv.FormatInt(stationID, 10) && idString(station["status"]) == "0" {
 			return
 		}
 	}
@@ -115,8 +115,13 @@ func requestJSON(t *testing.T, method, url string, body any) map[string]any {
 		t.Fatalf("%s %s status = %d, body = %s", method, url, response.StatusCode, payload)
 	}
 	decoded := make(map[string]any)
-	if err := json.NewDecoder(response.Body).Decode(&decoded); err != nil {
+	decoder := json.NewDecoder(response.Body)
+	decoder.UseNumber()
+	if err := decoder.Decode(&decoded); err != nil {
 		t.Fatalf("decode response: %v", err)
+	}
+	if data, ok := decoded["data"].(map[string]any); ok {
+		return data
 	}
 	return decoded
 }
@@ -135,8 +140,14 @@ func nestedID(t *testing.T, reply map[string]any, key string) int64 {
 }
 
 func idString(value any) string {
-	text, _ := value.(string)
-	return text
+	switch id := value.(type) {
+	case string:
+		return id
+	case json.Number:
+		return id.String()
+	default:
+		return ""
+	}
 }
 
 func cleanupAreaLifecycleData(t *testing.T, pool *pgxpool.Pool, areaID int64) {
