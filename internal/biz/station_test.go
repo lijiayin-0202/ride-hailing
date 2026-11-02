@@ -79,6 +79,24 @@ func TestStationUsecaseListAvailableFiltersAreaTypeDirectionAndStatus(t *testing
 	}
 }
 
+func TestStationUsecaseSupportsHistoricalNegativeIDs(t *testing.T) {
+	repository := &fakeStationRepository{}
+	usecase := NewStationUsecase(repository, &fakeStationAreaRepository{})
+	ctx := context.Background()
+
+	if _, err := usecase.List(ctx, -10); err != nil {
+		t.Fatalf("List() error = %v, want nil for a historical negative area ID", err)
+	}
+	if _, err := usecase.ChangeStatus(ctx, -21, StationStatusEnabled); err != nil {
+		t.Fatalf("ChangeStatus() error = %v, want nil for a historical negative station ID", err)
+	}
+	command := validStationCreateCommand()
+	command.ServiceAreaID = -10
+	if _, err := usecase.Create(ctx, command); err != nil {
+		t.Fatalf("Create() error = %v, want nil for a historical negative area ID", err)
+	}
+}
+
 func validStationCreateCommand() CreateStationCommand {
 	return CreateStationCommand{
 		ServiceAreaID:    1,

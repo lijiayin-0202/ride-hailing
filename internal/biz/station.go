@@ -107,7 +107,7 @@ func (usecase *StationUsecase) Create(ctx context.Context, command CreateStation
 
 // Update 仅允许更新可编辑字段。
 func (usecase *StationUsecase) Update(ctx context.Context, command UpdateStationCommand) (Station, error) {
-	if command.ID <= 0 {
+	if command.ID == 0 {
 		return Station{}, ErrInvalidStation
 	}
 	current, err := usecase.stations.Get(ctx, command.ID)
@@ -127,7 +127,7 @@ func (usecase *StationUsecase) Update(ctx context.Context, command UpdateStation
 
 // ChangeStatus 启用或停用已有站点。
 func (usecase *StationUsecase) ChangeStatus(ctx context.Context, id int64, status int16) (Station, error) {
-	if id <= 0 || !isValidStationStatus(status) {
+	if id == 0 || !isValidStationStatus(status) {
 		return Station{}, ErrInvalidStation
 	}
 	return usecase.stations.ChangeStatus(ctx, id, status)
@@ -135,15 +135,12 @@ func (usecase *StationUsecase) ChangeStatus(ctx context.Context, id int64, statu
 
 // List 返回后台维护站点；areaID 为零时由仓储返回全部站点。
 func (usecase *StationUsecase) List(ctx context.Context, areaID int64) ([]Station, error) {
-	if areaID < 0 {
-		return nil, ErrInvalidStation
-	}
 	return usecase.stations.List(ctx, areaID)
 }
 
 // ListAvailable 返回在指定区域可用于上车或下车的站点。
 func (usecase *StationUsecase) ListAvailable(ctx context.Context, areaID int64, direction int16) ([]Station, error) {
-	if areaID <= 0 || !isValidStationDirection(direction) {
+	if areaID == 0 || !isValidStationDirection(direction) {
 		return nil, ErrInvalidStation
 	}
 	area, err := usecase.areas.Get(ctx, areaID)
@@ -183,7 +180,7 @@ func changedImmutableField(current Station, command UpdateStationCommand) bool {
 }
 
 func validateStation(station Station) error {
-	if station.ServiceAreaID <= 0 || !stationCodePattern.MatchString(station.StationCode) ||
+	if station.ServiceAreaID == 0 || !stationCodePattern.MatchString(station.StationCode) ||
 		!validRequiredText(station.StationName, 120) || !validRequiredText(station.Address, 300) ||
 		!validOptionalText(station.AliasName, 120) || !validOptionalText(station.DirectionHint, 300) ||
 		station.Longitude < 73 || station.Longitude > 135.1 || station.Latitude < 3.5 || station.Latitude > 53.6 ||

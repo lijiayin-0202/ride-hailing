@@ -60,6 +60,30 @@ func TestServiceAreaAdminUsecaseAcceptsEmptySchedulesAndValidStatus(t *testing.T
 	}
 }
 
+func TestServiceAreaAdminUsecaseSupportsHistoricalNegativeIDs(t *testing.T) {
+	repository := &fakeServiceAreaAdminRepository{area: ManagedServiceArea{
+		ID: -10, AreaCode: "BJ-CORE", AreaName: "北京核心区", CityCode: "110000", CityName: "北京市",
+		BoundaryGeoJSON: `{}`, Status: ServiceAreaStatusOperating,
+	}}
+	usecase := NewServiceAreaAdminUsecase(repository)
+	ctx := context.Background()
+
+	if _, err := usecase.GetDetail(ctx, -10); err != nil {
+		t.Fatalf("GetDetail() error = %v, want nil for a historical negative area ID", err)
+	}
+	if _, err := usecase.Update(ctx, UpdateServiceAreaCommand{
+		ID: -10, AreaName: "北京核心区", CityCode: "110000", CityName: "北京市", BoundaryGeoJSON: `{}`,
+	}); err != nil {
+		t.Fatalf("Update() error = %v, want nil for a historical negative area ID", err)
+	}
+	if _, err := usecase.ChangeStatus(ctx, -10, ServiceAreaStatusOffline); err != nil {
+		t.Fatalf("ChangeStatus() error = %v, want nil for a historical negative area ID", err)
+	}
+	if err := usecase.ReplaceSchedules(ctx, -10, nil); err != nil {
+		t.Fatalf("ReplaceSchedules() error = %v, want nil for a historical negative area ID", err)
+	}
+}
+
 type fakeServiceAreaAdminRepository struct {
 	area          ManagedServiceArea
 	schedules     []ManagedServiceAreaSchedule

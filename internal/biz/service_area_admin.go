@@ -113,9 +113,9 @@ func (usecase *ServiceAreaAdminUsecase) List(ctx context.Context, query ServiceA
 	return usecase.repository.List(ctx, query)
 }
 
-// GetDetail 拒绝无效 ID，避免无意义的持久化访问。
+// GetDetail 拒绝零 ID，避免无意义的持久化访问；兼容历史负数 ID。
 func (usecase *ServiceAreaAdminUsecase) GetDetail(ctx context.Context, id int64) (ManagedServiceAreaDetail, error) {
-	if id <= 0 {
+	if id == 0 {
 		return ManagedServiceAreaDetail{}, ErrInvalidManagedServiceArea
 	}
 	return usecase.repository.GetDetail(ctx, id)
@@ -123,7 +123,7 @@ func (usecase *ServiceAreaAdminUsecase) GetDetail(ctx context.Context, id int64)
 
 // Update 在读取当前区域后拒绝任何编码变更，再提交完整可编辑资料。
 func (usecase *ServiceAreaAdminUsecase) Update(ctx context.Context, command UpdateServiceAreaCommand) (ManagedServiceArea, error) {
-	if command.ID <= 0 {
+	if command.ID == 0 {
 		return ManagedServiceArea{}, ErrInvalidManagedServiceArea
 	}
 	detail, err := usecase.repository.GetDetail(ctx, command.ID)
@@ -144,7 +144,7 @@ func (usecase *ServiceAreaAdminUsecase) Update(ctx context.Context, command Upda
 
 // ChangeStatus 只接受迁移已定义的三个状态值。
 func (usecase *ServiceAreaAdminUsecase) ChangeStatus(ctx context.Context, id int64, status int16) (ManagedServiceArea, error) {
-	if id <= 0 || !isValidServiceAreaStatus(status) {
+	if id == 0 || !isValidServiceAreaStatus(status) {
 		return ManagedServiceArea{}, ErrInvalidManagedServiceArea
 	}
 	return usecase.repository.ChangeStatus(ctx, id, status)
@@ -152,7 +152,7 @@ func (usecase *ServiceAreaAdminUsecase) ChangeStatus(ctx context.Context, id int
 
 // ReplaceSchedules 先复用时段形态与重叠校验，空规则列表代表默认不可运营。
 func (usecase *ServiceAreaAdminUsecase) ReplaceSchedules(ctx context.Context, id int64, schedules []ManagedServiceAreaSchedule) error {
-	if id <= 0 || !isValidManagedSchedules(schedules) {
+	if id == 0 || !isValidManagedSchedules(schedules) {
 		return ErrInvalidAreaSchedule
 	}
 	return usecase.repository.ReplaceSchedules(ctx, id, schedules)
