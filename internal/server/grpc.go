@@ -18,6 +18,9 @@ func NewGRPCServer(
 	c *conf.Server,
 	logger log.Logger,
 	passengerAccount *service.PassengerAccountService,
+	stationService *service.StationService,
+	serviceAreaAdminService *service.ServiceAreaAdminService,
+	callbackService *service.DispatchCallbackService,
 ) *grpc.Server {
 	// 中间件顺序：panic 兜底 → 链路追踪 → 请求日志（不打印参数）。
 	opts := []grpc.ServerOption{
@@ -45,6 +48,10 @@ func NewGRPCServer(
 	// 任务号：UA-T0-01~09（登录/实名）、UA-T1-01（地址）、UA-T2（个人中心/档案维护）
 	// gRPC 额外承载内部能力 CheckRealNameStatus（无 HTTP 路由，供订单/行程下单前置校验）。
 	v1.RegisterPassengerAccountServer(srv, passengerAccount)
+	// 模块3 运营区域、站点与派单回调。
+	v1.RegisterStationServiceServer(srv, stationService)
+	v1.RegisterServiceAreaAdminServiceServer(srv, serviceAreaAdminService)
+	v1.RegisterDispatchCallbackServiceServer(srv, callbackService)
 
 	return srv
 }

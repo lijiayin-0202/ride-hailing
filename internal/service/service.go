@@ -9,4 +9,9 @@ import "github.com/google/wire"
 var ProviderSet = wire.NewSet(
 	// 模块1 用户账号与个人中心（成员A）
 	NewPassengerAccountService,
+	// 模块3 运营区域、站点与派单。
+	NewStationService,
+	NewServiceAreaAdminService,
+	NewDispatchCallbackService,
+	NewDispatchService,
 )

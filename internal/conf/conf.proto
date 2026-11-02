@@ -31,22 +31,28 @@ message Data {
     string driver = 1;
     string source = 2;
   }
-  // Redis 连接配置；字段口径与后台服务 radish-admin-server 的 config.Redis 对齐
-  // （单机/集群二选一、口令、逻辑库），便于两个服务用同一套运维参数。
   message Redis {
     string network = 1;
     string addr = 2;
     google.protobuf.Duration read_timeout = 3;
     google.protobuf.Duration write_timeout = 4;
-    // password 连接口令；敏感项由环境变量注入，yaml 只保留 ${VAR} 占位。
     string password = 5;
-    // db 逻辑库编号，仅单机模式生效。
     int32 db = 6;
-    // use_cluster 是否启用集群模式。
     bool use_cluster = 7;
-    // cluster_addrs 集群节点地址，use_cluster 为 true 时生效。
     repeated string cluster_addrs = 8;
+  }
+  message DispatchOutbox {
+    string vehicle_gateway_addr = 1;
+    google.protobuf.Duration request_timeout = 2;
+    google.protobuf.Duration poll_interval = 3;
+    google.protobuf.Duration lease_duration = 4;
+    string order_gateway_addr = 5;
+    string dispatch_strategy = 6;
+    double dispatch_average_speed_kmh = 7;
+    google.protobuf.Duration reassignment_poll_interval = 8;
+    google.protobuf.Duration order_sync_poll_interval = 9;
   }
   Database database = 1;
   Redis redis = 2;
+  DispatchOutbox dispatch_outbox = 3;
 }
