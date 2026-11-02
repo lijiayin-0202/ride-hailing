@@ -41,7 +41,12 @@ func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger) (*
 	notificationUsecase := biz.NewNotificationUsecase(notificationRepo, logger)
 	realNameRepo := data.NewRealNameRepo(dataData, logger)
 	realNameSalt := biz.ProvideRealNameSalt()
-	realNameUsecase, err := biz.NewRealNameUsecase(realNameRepo, passengerRepo, realNameSalt, logger)
+	realNameBox, err := biz.ProvideRealNameBox()
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+	realNameUsecase, err := biz.NewRealNameUsecase(realNameRepo, passengerRepo, realNameSalt, realNameBox, logger)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
@@ -49,7 +54,9 @@ func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger) (*
 	loginDeviceRepo := data.NewLoginDeviceRepo(dataData, logger)
 	loginRecordRepo := data.NewLoginRecordRepo(dataData, logger)
 	loginDeviceUsecase := biz.NewLoginDeviceUsecase(loginDeviceRepo, loginRecordRepo, logger)
-	passengerAccountService := service.NewPassengerAccountService(authUsecase, passengerUsecase, addressUsecase, couponUsecase, pointUsecase, notificationUsecase, realNameUsecase, loginDeviceUsecase, logger)
+	emergencyContactRepo := data.NewEmergencyContactRepo(dataData, logger)
+	emergencyContactUsecase := biz.NewEmergencyContactUsecase(emergencyContactRepo, logger)
+	passengerAccountService := service.NewPassengerAccountService(authUsecase, passengerUsecase, addressUsecase, couponUsecase, pointUsecase, notificationUsecase, realNameUsecase, loginDeviceUsecase, emergencyContactUsecase, logger)
 	httpServer := server.NewHTTPServer(confServer, logger, passengerAccountService)
 	grpcServer := server.NewGRPCServer(confServer, logger, passengerAccountService)
 	app := newApp(logger, httpServer, grpcServer)

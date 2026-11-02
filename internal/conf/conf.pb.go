@@ -350,12 +350,22 @@ func (x *Data_Database) GetSource() string {
 	return ""
 }
 
+// Redis 连接配置；字段口径与后台服务 radish-admin-server 的 config.Redis 对齐
+// （单机/集群二选一、口令、逻辑库），便于两个服务用同一套运维参数。
 type Data_Redis struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Network       string                 `protobuf:"bytes,1,opt,name=network,proto3" json:"network,omitempty"`
-	Addr          string                 `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr,omitempty"`
-	ReadTimeout   *durationpb.Duration   `protobuf:"bytes,3,opt,name=read_timeout,json=readTimeout,proto3" json:"read_timeout,omitempty"`
-	WriteTimeout  *durationpb.Duration   `protobuf:"bytes,4,opt,name=write_timeout,json=writeTimeout,proto3" json:"write_timeout,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Network      string                 `protobuf:"bytes,1,opt,name=network,proto3" json:"network,omitempty"`
+	Addr         string                 `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr,omitempty"`
+	ReadTimeout  *durationpb.Duration   `protobuf:"bytes,3,opt,name=read_timeout,json=readTimeout,proto3" json:"read_timeout,omitempty"`
+	WriteTimeout *durationpb.Duration   `protobuf:"bytes,4,opt,name=write_timeout,json=writeTimeout,proto3" json:"write_timeout,omitempty"`
+	// password 连接口令；敏感项由环境变量注入，yaml 只保留 ${VAR} 占位。
+	Password string `protobuf:"bytes,5,opt,name=password,proto3" json:"password,omitempty"`
+	// db 逻辑库编号，仅单机模式生效。
+	Db int32 `protobuf:"varint,6,opt,name=db,proto3" json:"db,omitempty"`
+	// use_cluster 是否启用集群模式。
+	UseCluster bool `protobuf:"varint,7,opt,name=use_cluster,json=useCluster,proto3" json:"use_cluster,omitempty"`
+	// cluster_addrs 集群节点地址，use_cluster 为 true 时生效。
+	ClusterAddrs  []string `protobuf:"bytes,8,rep,name=cluster_addrs,json=clusterAddrs,proto3" json:"cluster_addrs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -418,6 +428,34 @@ func (x *Data_Redis) GetWriteTimeout() *durationpb.Duration {
 	return nil
 }
 
+func (x *Data_Redis) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+func (x *Data_Redis) GetDb() int32 {
+	if x != nil {
+		return x.Db
+	}
+	return 0
+}
+
+func (x *Data_Redis) GetUseCluster() bool {
+	if x != nil {
+		return x.UseCluster
+	}
+	return false
+}
+
+func (x *Data_Redis) GetClusterAddrs() []string {
+	if x != nil {
+		return x.ClusterAddrs
+	}
+	return nil
+}
+
 var File_internal_conf_conf_proto protoreflect.FileDescriptor
 
 const file_internal_conf_conf_proto_rawDesc = "" +
@@ -436,18 +474,23 @@ const file_internal_conf_conf_proto_rawDesc = "" +
 	"\x04GRPC\x12\x18\n" +
 	"\anetwork\x18\x01 \x01(\tR\anetwork\x12\x12\n" +
 	"\x04addr\x18\x02 \x01(\tR\x04addr\x123\n" +
-	"\atimeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\atimeout\"\xe9\x02\n" +
+	"\atimeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\atimeout\"\xdb\x03\n" +
 	"\x04Data\x12;\n" +
 	"\bdatabase\x18\x01 \x01(\v2\x1f.ridehailing.conf.Data.DatabaseR\bdatabase\x122\n" +
 	"\x05redis\x18\x02 \x01(\v2\x1c.ridehailing.conf.Data.RedisR\x05redis\x1a:\n" +
 	"\bDatabase\x12\x16\n" +
 	"\x06driver\x18\x01 \x01(\tR\x06driver\x12\x16\n" +
-	"\x06source\x18\x02 \x01(\tR\x06source\x1a\xb3\x01\n" +
+	"\x06source\x18\x02 \x01(\tR\x06source\x1a\xa5\x02\n" +
 	"\x05Redis\x12\x18\n" +
 	"\anetwork\x18\x01 \x01(\tR\anetwork\x12\x12\n" +
 	"\x04addr\x18\x02 \x01(\tR\x04addr\x12<\n" +
 	"\fread_timeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\vreadTimeout\x12>\n" +
-	"\rwrite_timeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\fwriteTimeoutB@Z>github.com/lijayin-0202/radish-ride-service/internal/conf;confb\x06proto3"
+	"\rwrite_timeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\fwriteTimeout\x12\x1a\n" +
+	"\bpassword\x18\x05 \x01(\tR\bpassword\x12\x0e\n" +
+	"\x02db\x18\x06 \x01(\x05R\x02db\x12\x1f\n" +
+	"\vuse_cluster\x18\a \x01(\bR\n" +
+	"useCluster\x12#\n" +
+	"\rcluster_addrs\x18\b \x03(\tR\fclusterAddrsB@Z>github.com/lijayin-0202/radish-ride-service/internal/conf;confb\x06proto3"
 
 var (
 	file_internal_conf_conf_proto_rawDescOnce sync.Once

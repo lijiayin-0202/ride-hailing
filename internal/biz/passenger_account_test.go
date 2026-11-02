@@ -6,10 +6,12 @@ package biz
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/lijayin-0202/radish-ride-service/pkg/mask"
 	"github.com/lijayin-0202/radish-ride-service/pkg/validate"
@@ -18,13 +20,26 @@ import (
 // ---------------------------- 假实现 ----------------------------
 
 type fakePassengerRepo struct {
-	byMobile map[string]*Passenger
-	byID     map[int64]*Passenger
-	created  int
+	byMobile     map[string]*Passenger
+	byID         map[int64]*Passenger
+	passwordHash map[string]string
+	created      int
 }
 
 func newFakePassengerRepo() *fakePassengerRepo {
-	return &fakePassengerRepo{byMobile: map[string]*Passenger{}, byID: map[int64]*Passenger{}}
+	return &fakePassengerRepo{
+		byMobile:     map[string]*Passenger{},
+		byID:         map[int64]*Passenger{},
+		passwordHash: map[string]string{},
+	}
+}
+
+// PasswordHashByMobile 模拟密码哈希查询：账号不存在返回 ErrPassengerNotFound，未设密码返回空串。
+func (f *fakePassengerRepo) PasswordHashByMobile(_ context.Context, mobile string) (string, error) {
+	if _, ok := f.byMobile[mobile]; !ok {
+		return "", ErrPassengerNotFound
+	}
+	return f.passwordHash[mobile], nil
 }
 
 func (f *fakePassengerRepo) GetByMobile(_ context.Context, mobile string) (*Passenger, error) {
@@ -103,6 +118,7 @@ type fakeCodeStore struct {
 	mobileIdx  map[string]string
 	attempts   map[string]int32
 	resend     map[string]time.Time
+	sendCounts map[string]int64
 }
 
 func newFakeCodeStore() *fakeCodeStore {
@@ -111,6 +127,7 @@ func newFakeCodeStore() *fakeCodeStore {
 		mobileIdx:  map[string]string{},
 		attempts:   map[string]int32{},
 		resend:     map[string]time.Time{},
+		sendCounts: map[string]int64{},
 	}
 }
 
@@ -166,6 +183,18 @@ func (f *fakeCodeStore) AcquireResendLock(_ context.Context, scene, mobile strin
 
 func (f *fakeCodeStore) ReleaseResendLock(_ context.Context, scene, mobile string) error {
 	delete(f.resend, scene+"|"+mobile)
+	return nil
+}
+
+// IncrSendCount 模拟固定窗口计数（测试中不关心窗口过期）。
+func (f *fakeCodeStore) IncrSendCount(_ context.Context, key string, _ time.Duration) (int64, error) {
+	f.sendCounts[key]++
+	return f.sendCounts[key], nil
+}
+
+// ResetSendCount 模拟清零计数键。
+func (f *fakeCodeStore) ResetSendCount(_ context.Context, key string) error {
+	delete(f.sendCounts, key)
 	return nil
 }
 
@@ -422,6 +451,146 @@ func TestSendLoginCode_RateLimited(t *testing.T) {
 	}
 	if _, err := uc.SendLoginCode(ctx, "13800000001", "LOGIN"); !errors.Is(err, ErrSmsTooFrequent) {
 		t.Fatalf("冷却期内应限流，实际: %v", err)
+	}
+}
+
+// 手机号单日上限：每次发送后释放冷却锁模拟 60 秒重试，第 11 次应被限流。
+func TestSendLoginCode_DailyQuota(t *testing.T) {
+	uc, _, store, _, _ := newTestAuthUsecase(t, nil)
+	ctx := context.Background()
+	const mobile = "13800000009"
+
+	for i := int64(0); i < SmsDailyLimitPerMobile; i++ {
+		if _, err := uc.SendLoginCode(ctx, mobile, SmsCodeSceneLogin); err != nil {
+			t.Fatalf("第 %d 次发送应成功: %v", i+1, err)
+		}
+		if err := store.ReleaseResendLock(ctx, SmsCodeSceneLogin, mobile); err != nil {
+			t.Fatalf("释放冷却锁失败: %v", err)
+		}
+	}
+	if _, err := uc.SendLoginCode(ctx, mobile, SmsCodeSceneLogin); !errors.Is(err, ErrSmsTooFrequent) {
+		t.Fatalf("超过单日上限应限流，实际: %v", err)
+	}
+}
+
+// IP 维度上限：同一 IP 下换不同手机号，第 21 次应被限流。
+func TestSendLoginCode_IPQuota(t *testing.T) {
+	uc, _, store, _, _ := newTestAuthUsecase(t, nil)
+	ctx := context.Background()
+	const clientIP = "10.0.0.1"
+
+	for i := int64(0); i < SmsHourlyLimitPerIP; i++ {
+		mobile := fmt.Sprintf("1390000%04d", i)
+		if _, err := uc.SendSmsCodeWithMeta(ctx, 0, mobile, SmsCodeSceneLogin, clientIP, ""); err != nil {
+			t.Fatalf("第 %d 次发送应成功: %v", i+1, err)
+		}
+		_ = store.ReleaseResendLock(ctx, SmsCodeSceneLogin, mobile)
+	}
+	if _, err := uc.SendSmsCodeWithMeta(ctx, 0, "13900009999", SmsCodeSceneLogin, clientIP, ""); !errors.Is(err, ErrSmsTooFrequent) {
+		t.Fatalf("超过 IP 小时上限应限流，实际: %v", err)
+	}
+}
+
+// ---------------------------- 密码登录（UA-T0-05） ----------------------------
+
+// newPasswordLoginFixture 构造带密码的账号：password 非空时写入 bcrypt 哈希。
+func newPasswordLoginFixture(t *testing.T, password string) (*AuthUsecase, *fakePassengerRepo) {
+	t.Helper()
+	passenger := &Passenger{ID: 201, PassengerNo: "P201", Mobile: "13800000201", AccountStatus: AccountStatusNormal}
+	uc, repo, _, _, _ := newTestAuthUsecase(t, passenger)
+	if password != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+		if err != nil {
+			t.Fatalf("生成密码哈希失败: %v", err)
+		}
+		repo.passwordHash[passenger.Mobile] = string(hash)
+	}
+	return uc, repo
+}
+
+// 密码正确：返回令牌，并写一条认证方式为密码的登录审计。
+func TestPasswordLogin_Success(t *testing.T) {
+	uc, _ := newPasswordLoginFixture(t, "Passw0rd!")
+	result, err := uc.PasswordLogin(context.Background(), &LoginInput{Mobile: "13800000201", DeviceID: "dev-1"}, "Passw0rd!")
+	if err != nil {
+		t.Fatalf("密码登录应成功: %v", err)
+	}
+	if result.AccessToken == "" || result.Passenger == nil {
+		t.Fatal("应返回令牌与乘客信息")
+	}
+}
+
+// 密码错误：统一返回 ErrPasswordIncorrect。
+func TestPasswordLogin_WrongPassword(t *testing.T) {
+	uc, _ := newPasswordLoginFixture(t, "Passw0rd!")
+	if _, err := uc.PasswordLogin(context.Background(), &LoginInput{Mobile: "13800000201"}, "wrong-pass"); !errors.Is(err, ErrPasswordIncorrect) {
+		t.Fatalf("密码错误应返回统一话术，实际: %v", err)
+	}
+}
+
+// 未设置密码（手机号注册账号）：提示改用验证码登录，禁止空密码登录。
+func TestPasswordLogin_NoPasswordSet(t *testing.T) {
+	uc, _ := newPasswordLoginFixture(t, "")
+	if _, err := uc.PasswordLogin(context.Background(), &LoginInput{Mobile: "13800000201"}, "Passw0rd!"); !errors.Is(err, ErrPasswordNotSet) {
+		t.Fatalf("未设置密码应提示改用验证码，实际: %v", err)
+	}
+	if _, err := uc.PasswordLogin(context.Background(), &LoginInput{Mobile: "13800000201"}, ""); err == nil {
+		t.Fatal("空密码必须被拒绝")
+	}
+}
+
+// 账号不存在：不暴露账号是否存在，与密码错误同一话术。
+func TestPasswordLogin_UnknownMobile(t *testing.T) {
+	uc, _, _, _, _ := newTestAuthUsecase(t, nil)
+	if _, err := uc.PasswordLogin(context.Background(), &LoginInput{Mobile: "13800000299"}, "Passw0rd!"); !errors.Is(err, ErrPasswordIncorrect) {
+		t.Fatalf("账号不存在应返回统一话术，实际: %v", err)
+	}
+}
+
+// 连续错误达到上限后锁定：第 6 次即使密码正确也被拒绝。
+func TestPasswordLogin_FailLocked(t *testing.T) {
+	uc, _ := newPasswordLoginFixture(t, "Passw0rd!")
+	ctx := context.Background()
+
+	for i := int64(0); i < PasswordMaxAttempts; i++ {
+		if _, err := uc.PasswordLogin(ctx, &LoginInput{Mobile: "13800000201"}, "wrong-pass"); !errors.Is(err, ErrPasswordIncorrect) {
+			t.Fatalf("第 %d 次错误密码应返回统一话术，实际: %v", i+1, err)
+		}
+	}
+	if _, err := uc.PasswordLogin(ctx, &LoginInput{Mobile: "13800000201"}, "Passw0rd!"); !errors.Is(err, ErrPasswordAttemptLimited) {
+		t.Fatalf("超过尝试上限应锁定，实际: %v", err)
+	}
+}
+
+// 成功登录清零失败计数，不会因为历史失败次数把正常用户锁住。
+func TestPasswordLogin_SuccessResetsCounter(t *testing.T) {
+	uc, _ := newPasswordLoginFixture(t, "Passw0rd!")
+	ctx := context.Background()
+
+	for i := 0; i < 4; i++ {
+		_, _ = uc.PasswordLogin(ctx, &LoginInput{Mobile: "13800000201"}, "wrong-pass")
+	}
+	if _, err := uc.PasswordLogin(ctx, &LoginInput{Mobile: "13800000201"}, "Passw0rd!"); err != nil {
+		t.Fatalf("第 5 次密码正确应登录成功: %v", err)
+	}
+	for i := 0; i < 4; i++ {
+		if _, err := uc.PasswordLogin(ctx, &LoginInput{Mobile: "13800000201"}, "wrong-pass"); !errors.Is(err, ErrPasswordIncorrect) {
+			t.Fatalf("清零后第 %d 次应仍是密码错误，实际: %v", i+1, err)
+		}
+	}
+}
+
+// 冻结账号：即使密码正确也不允许登录。
+func TestPasswordLogin_AccountFrozen(t *testing.T) {
+	passenger := &Passenger{ID: 202, PassengerNo: "P202", Mobile: "13800000202", AccountStatus: AccountStatusFrozen}
+	uc, repo, _, _, _ := newTestAuthUsecase(t, passenger)
+	hash, err := bcrypt.GenerateFromPassword([]byte("Passw0rd!"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("生成密码哈希失败: %v", err)
+	}
+	repo.passwordHash[passenger.Mobile] = string(hash)
+	if _, err := uc.PasswordLogin(context.Background(), &LoginInput{Mobile: passenger.Mobile}, "Passw0rd!"); !errors.Is(err, ErrAccountDisabled) {
+		t.Fatalf("冻结账号应拒绝密码登录，实际: %v", err)
 	}
 }
 

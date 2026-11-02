@@ -41,7 +41,9 @@ func NewGRPCServer(
 
 	srv := grpc.NewServer(opts...)
 
-	// 模块1 用户账号与个人中心（成员A）｜任务号：待登记（agent/07 §1：注册处需标注任务号）
+	// 模块1 用户账号与个人中心（成员A）
+	// 任务号：UA-T0-01~09（登录/实名）、UA-T1-01（地址）、UA-T2（个人中心/档案维护）
+	// gRPC 额外承载内部能力 CheckRealNameStatus（无 HTTP 路由，供订单/行程下单前置校验）。
 	v1.RegisterPassengerAccountServer(srv, passengerAccount)
 
 	return srv

@@ -16,6 +16,7 @@ import (
 
 	"github.com/lijayin-0202/radish-ride-service/internal/biz"
 	"github.com/lijayin-0202/radish-ride-service/internal/conf"
+	"github.com/lijayin-0202/radish-ride-service/pkg/cache"
 )
 
 // ProviderSet is data providers.
@@ -32,6 +33,7 @@ var ProviderSet = wire.NewSet(
 	NewRealNameRepo,
 	NewLoginDeviceRepo,
 	NewLoginRecordRepo,
+	NewEmergencyContactRepo,
 	NewSmsCodeStore,
 	NewSmsSender,
 	NewTokenIssuer,
@@ -41,8 +43,9 @@ var ProviderSet = wire.NewSet(
 type Data struct {
 	// db PostgreSQL 连接池（主库，AGENT.md §2 固定 PostgreSQL）。
 	db *pgxpool.Pool
-	// rdb Redis 客户端；不可用时为 nil，验证码退化为进程内存储。
-	rdb *redis.Client
+	// rdb Redis 客户端（单机/集群统一为 UniversalClient，构造口径见 pkg/cache）；
+	// 不可用时为 nil，验证码退化为进程内存储。
+	rdb redis.UniversalClient
 	// log 结构化日志。
 	log *log.Helper
 }
@@ -99,16 +102,26 @@ func NewData(c *conf.Data, logger log.Logger) (*Data, func(), error) {
 
 	// Redis：验证码短期存储与限流使用。连接不可用时不阻断启动，
 	// 由 NewSmsCodeStore 退化为进程内存储并打印告警（仅限单实例开发/联调）。
-	if addr := strings.TrimSpace(c.GetRedis().GetAddr()); addr != "" {
-		rdb := redis.NewClient(&redis.Options{
-			Addr:         addr,
-			DialTimeout:  2 * time.Second,
-			ReadTimeout:  durationOrDefault(c.GetRedis().GetReadTimeout().AsDuration(), 500*time.Millisecond),
-			WriteTimeout: durationOrDefault(c.GetRedis().GetWriteTimeout().AsDuration(), 500*time.Millisecond),
+	// 客户端构造统一走 pkg/cache，与后台服务 initialize/redis.go 保持同一套口径
+	// （单机/集群 UniversalClient、口令与逻辑库、统一超时）。
+	redisAddr := strings.TrimSpace(c.GetRedis().GetAddr())
+	useCluster := c.GetRedis().GetUseCluster()
+	clusterAddrs := c.GetRedis().GetClusterAddrs()
+	// 单机模式填 addr；集群模式填 cluster_addrs + use_cluster=true。
+	// 两者都未配置时不初始化，直接退化为进程内存储（仅限单实例开发/联调）。
+	if redisAddr != "" || (useCluster && len(clusterAddrs) > 0) {
+		rdb := cache.New(cache.Config{
+			Addr:         redisAddr,
+			ClusterAddrs: clusterAddrs,
+			UseCluster:   useCluster,
+			Password:     c.GetRedis().GetPassword(),
+			DB:           int(c.GetRedis().GetDb()),
+			ReadTimeout:  c.GetRedis().GetReadTimeout().AsDuration(),
+			WriteTimeout: c.GetRedis().GetWriteTimeout().AsDuration(),
 		})
 		redisCtx, redisCancel := context.WithTimeout(context.Background(), 2*time.Second)
 		if err := rdb.Ping(redisCtx).Err(); err != nil {
-			helper.Warnf("Redis 不可用（%s），验证码将使用进程内存储: %v", addr, err)
+			helper.Warnf("Redis 不可用（addr=%q cluster=%v），验证码将使用进程内存储: %v", redisAddr, clusterAddrs, err)
 			_ = rdb.Close()
 		} else {
 			d.rdb = rdb
@@ -126,12 +139,6 @@ func NewData(c *conf.Data, logger log.Logger) (*Data, func(), error) {
 	return d, cleanup, nil
 }
 
-func durationOrDefault(v, def time.Duration) time.Duration {
-	if v <= 0 {
-		return def
-	}
-	return v
-}
 
 // 编译期断言：确保 data 层实现 biz 定义的仓库接口。
 var (
@@ -144,4 +151,5 @@ var (
 	_ biz.RealNameRepo            = (*realNameRepo)(nil)
 	_ biz.LoginDeviceRepo         = (*loginDeviceRepo)(nil)
 	_ biz.LoginRecordRepo         = (*loginRecordRepo)(nil)
+	_ biz.EmergencyContactRepo    = (*emergencyContactRepo)(nil)
 )

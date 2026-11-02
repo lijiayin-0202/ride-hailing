@@ -123,6 +123,14 @@ try {
     }
     catch { Add-Result "4.Address" "FAIL" (Get-ErrBody $_) }
 
+    # ---------- 8. emergency contact: save then read back ----------
+    try {
+        $ec = Post-Json "$BaseUrl/emergency-contact" @{ contact_name = "Li Si"; contact_mobile = "13800000000"; relation = "spouse" } "Put"
+        $ecg = Get-Api "$BaseUrl/emergency-contact"
+        Add-Result "8.EmergencyContact" "PASS" "has=$($ecg.data.has_contact) name=$($ecg.data.contact.contact_name) mobile=$($ecg.data.contact.contact_mobile)"
+    }
+    catch { Add-Result "8.EmergencyContact" "FAIL" (Get-ErrBody $_) }
+
     # ---------- 5a. coupons ----------
     try {
         $cp = Get-Api "$BaseUrl/coupons?page=1&page_size=10"

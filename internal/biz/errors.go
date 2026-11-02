@@ -47,12 +47,27 @@ var (
 
 	// 实名认证提交频控：复用限流码，不新增未定义错误码。
 	ErrRealNameTooFrequent = kerrors.New(http.StatusTooManyRequests, CodeRateLimited, "提交过于频繁，请稍后再试")
+
+	// 密码登录（UA-T0-05）
+	// ErrPasswordNotSet 手机号注册的账号未设置密码，提示改用验证码登录。
+	ErrPasswordNotSet = kerrors.BadRequest(CodeInvalidArgument, "该账号未设置密码，请使用验证码登录")
+	// ErrPasswordIncorrect 账号不存在与密码错误统一话术，避免手机号被枚举。
+	ErrPasswordIncorrect = kerrors.Unauthorized(CodeUnauthorized, "手机号或密码不正确")
+	// ErrPasswordAttemptLimited 连续密码错误次数超限，短时间锁定（复用限流码，不新增错误码）。
+	ErrPasswordAttemptLimited = kerrors.New(http.StatusTooManyRequests, CodeRateLimited, "密码错误次数过多，请15分钟后再试")
 )
 
 // invalidArgument 在通用错误上覆盖具体提示，便于前端直接展示。
 func invalidArgument(format string, args ...any) error {
 	e := kerrors.Clone(ErrInvalidArgument)
 	e.Message = fmt.Sprintf(format, args...)
+	return e
+}
+
+// tooManyRequests 生成带具体提示的 429 错误：复用既有限流码，不新增未定义错误码。
+func tooManyRequests(message string) error {
+	e := kerrors.Clone(ErrSmsTooFrequent)
+	e.Message = message
 	return e
 }
 

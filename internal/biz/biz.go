@@ -14,9 +14,12 @@ var ProviderSet = wire.NewSet(
 	NewCouponUsecase,
 	NewPointUsecase,
 	NewNotificationUsecase,
-	// 实名认证：盐值由 conf 提供（独立类型，避免 wire 混淆 string 依赖）
+	// 实名认证：盐值与加密密钥由 conf 提供（独立类型，避免 wire 混淆 string 依赖）
 	ProvideRealNameSalt,
+	ProvideRealNameBox,
 	NewRealNameUsecase,
 	// 登录设备与登录记录（账号管理页）
 	NewLoginDeviceUsecase,
+	// 紧急联系人（档案维护）
+	NewEmergencyContactUsecase,
 )
