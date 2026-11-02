@@ -53,8 +53,8 @@ func NewSmsCodeStore(d *Data, logger log.Logger) biz.SmsCodeStore {
 
 // redisSmsCodeStore Redis 版验证码存储（多实例共用，生产唯一推荐实现）。
 type redisSmsCodeStore struct {
-	// rdb Redis 客户端，非 nil 时由 NewSmsCodeStore 选用。
-	rdb *redis.Client
+	// rdb Redis 客户端（单机/集群统一为 UniversalClient），非 nil 时由 NewSmsCodeStore 选用。
+	rdb redis.UniversalClient
 	// log 结构化日志。
 	log *log.Helper
 }
@@ -152,6 +152,28 @@ func (s *redisSmsCodeStore) ReleaseResendLock(ctx context.Context, scene, mobile
 	return s.rdb.Del(ctx, resendKey(scene, mobile)).Err()
 }
 
+// incrSendCountScript 原子「自增 + 首次设置过期」。
+// 必要性：先 INCR 再 EXPIRE 分两步时，若进程在中途退出会留下永不过期的计数键，
+// 导致该手机号/设备被永久限流。
+// KEYS[1]=计数键；ARGV[1]=窗口毫秒数。
+var incrSendCountScript = redis.NewScript(`
+local n = redis.call('INCR', KEYS[1])
+if n == 1 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+end
+return n
+`)
+
+// IncrSendCount 累加发送计数并返回累加后的值（固定窗口：首次写入时设置过期）。
+func (s *redisSmsCodeStore) IncrSendCount(ctx context.Context, key string, window time.Duration) (int64, error) {
+	return incrSendCountScript.Run(ctx, s.rdb, []string{key}, window.Milliseconds()).Int64()
+}
+
+// ResetSendCount 清零计数键（密码登录成功后解除锁定）。
+func (s *redisSmsCodeStore) ResetSendCount(ctx context.Context, key string) error {
+	return s.rdb.Del(ctx, key).Err()
+}
+
 // compareAndDeleteScript 原子「比对哈希 + 删除挑战」。
 // 必要性：GET 与 DEL 分两步会留出并发窗口，同一个验证码可被并发请求签发两个令牌。
 // KEYS[1]=挑战键 KEYS[2]=错误计数键；ARGV[1]=待比对哈希 ARGV[2]=手机号索引前缀。
@@ -196,6 +218,14 @@ type memorySmsCodeStore struct {
 	attempts map[string]int32
 	// resendUntil 手机号 → 冷却截止时间。
 	resendUntil map[string]time.Time
+	// sendCounts 配额计数键 → 固定窗口计数（手机号/日、IP/时、设备/时）。
+	sendCounts map[string]*sendCounter
+}
+
+// sendCounter 固定窗口计数：窗口过期后从 0 重新计数。
+type sendCounter struct {
+	count    int64
+	expireAt time.Time
 }
 
 // newMemorySmsCodeStore 初始化进程内存储的全部索引表。
@@ -205,7 +235,30 @@ func newMemorySmsCodeStore() *memorySmsCodeStore {
 		mobileIndex: make(map[string]string),
 		attempts:    make(map[string]int32),
 		resendUntil: make(map[string]time.Time),
+		sendCounts:  make(map[string]*sendCounter),
 	}
+}
+
+// IncrSendCount 累加发送计数并返回累加后的值（固定窗口，等价于 Redis 的 INCR+首次 PEXPIRE）。
+func (s *memorySmsCodeStore) IncrSendCount(_ context.Context, key string, window time.Duration) (int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := time.Now()
+	counter, ok := s.sendCounts[key]
+	if !ok || now.After(counter.expireAt) {
+		counter = &sendCounter{expireAt: now.Add(window)}
+		s.sendCounts[key] = counter
+	}
+	counter.count++
+	return counter.count, nil
+}
+
+// ResetSendCount 清零计数键（密码登录成功后解除锁定）。
+func (s *memorySmsCodeStore) ResetSendCount(_ context.Context, key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.sendCounts, key)
+	return nil
 }
 
 // SaveChallenge 保存挑战（写入前顺带清理过期数据，避免 map 无界增长）。
@@ -316,6 +369,12 @@ func (s *memorySmsCodeStore) purgeExpiredLocked(now time.Time) {
 	for mobile, until := range s.resendUntil {
 		if now.After(until) {
 			delete(s.resendUntil, mobile)
+		}
+	}
+	// 配额计数窗口过期后一并清理，避免进程内 map 无界增长。
+	for key, counter := range s.sendCounts {
+		if now.After(counter.expireAt) {
+			delete(s.sendCounts, key)
 		}
 	}
 }

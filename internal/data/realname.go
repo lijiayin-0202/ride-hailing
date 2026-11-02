@@ -82,20 +82,23 @@ func (r *realNameRepo) Submit(ctx context.Context, record *biz.RealNameRecord) (
 	// 覆盖式写入：乘客已有记录时更新（重置状态、清空驳回原因与审核时间）。
 	err = tx.QueryRow(ctx,
 		`INSERT INTO passenger_real_name_records
-			(passenger_id, real_name_masked, id_card_masked, id_card_hash, status, reject_reason,
-			 submitted_at, verified_at, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, '', now(), NULL, now(), now())
+			(passenger_id, real_name_masked, id_card_masked, id_card_hash, real_name_cipher, id_card_cipher,
+			 status, reject_reason, submitted_at, verified_at, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, '', now(), NULL, now(), now())
 		 ON CONFLICT (passenger_id) DO UPDATE SET
 			real_name_masked = EXCLUDED.real_name_masked,
 			id_card_masked   = EXCLUDED.id_card_masked,
 			id_card_hash     = EXCLUDED.id_card_hash,
+			real_name_cipher = EXCLUDED.real_name_cipher,
+			id_card_cipher   = EXCLUDED.id_card_cipher,
 			status           = EXCLUDED.status,
 			reject_reason    = '',
 			submitted_at     = now(),
 			verified_at      = NULL,
 			updated_at       = now()
 		 RETURNING id, submitted_at, created_at, updated_at`,
-		record.PassengerID, record.RealNameMasked, record.IDCardMasked, record.IDCardHash, record.Status,
+		record.PassengerID, record.RealNameMasked, record.IDCardMasked, record.IDCardHash,
+		record.RealNameCipher, record.IDCardCipher, record.Status,
 	).Scan(&record.ID, &record.SubmittedAt, &record.CreatedAt, &record.UpdatedAt)
 	if err != nil {
 		// 证件哈希唯一索引冲突（同一证件被并发绑定）按业务冲突返回。

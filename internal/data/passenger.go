@@ -178,6 +178,21 @@ func (r *passengerRepo) UpdateMobile(ctx context.Context, id int64, mobile strin
 	return nil
 }
 
+// PasswordHashByMobile 按手机号取密码哈希。
+// 返回空串表示该账号未设置密码（手机号验证码注册的账号默认无密码）。
+func (r *passengerRepo) PasswordHashByMobile(ctx context.Context, mobile string) (string, error) {
+	var hash string
+	err := r.data.db.QueryRow(ctx,
+		`SELECT coalesce(password_hash, '') FROM passengers WHERE mobile = $1`, mobile).Scan(&hash)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", biz.ErrPassengerNotFound
+		}
+		return "", err
+	}
+	return hash, nil
+}
+
 // WalletBalance 钱包余额（元）。钱包未初始化时按 0 处理。
 func (r *passengerRepo) WalletBalance(ctx context.Context, id int64) (float64, error) {
 	var balance float64

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/lijayin-0202/radish-ride-service/pkg/mask"
 	"github.com/lijayin-0202/radish-ride-service/pkg/validate"
@@ -38,14 +39,28 @@ const (
 	SmsResendInterval = 60 * time.Second
 	// SmsMaxAttempts 单个挑战最多校验 5 次，超限作废。
 	SmsMaxAttempts int32 = 5
+	// SmsDailyLimitPerMobile 同一手机号单日发送上限（接口设计 UA-T0-03）。
+	SmsDailyLimitPerMobile int64 = 10
+	// SmsHourlyLimitPerIP 同一 IP 每小时发送上限（接口设计 UA-T0-03）。
+	SmsHourlyLimitPerIP int64 = 20
+	// SmsHourlyLimitPerDevice 同一设备每小时发送上限（接口设计 UA-T0-03）。
+	SmsHourlyLimitPerDevice int64 = 20
 	// AccessTokenTTL 访问令牌有效期：2 小时。
 	AccessTokenTTL = 2 * time.Hour
+	// maxPasswordLength 密码最大长度：bcrypt 只取前 72 字节，业务侧先拦住超长输入。
+	maxPasswordLength = 64
+	// PasswordMaxAttempts 同一手机号连续密码尝试上限，超过进入锁定窗口。
+	PasswordMaxAttempts int64 = 5
+	// PasswordAttemptWindow 密码尝试计数窗口（同时也是锁定时长）。
+	PasswordAttemptWindow = 15 * time.Minute
 
 	// 认证方式（passenger_auth_records.auth_type）
 	// AuthTypeMobileSms 手机号验证码登录。
 	AuthTypeMobileSms int16 = 1
 	// AuthTypeMobileChange 更换绑定手机号。
 	AuthTypeMobileChange int16 = 2
+	// AuthTypePassword 账号密码登录（老接口兼容，UA-T0-05）。
+	AuthTypePassword int16 = 3
 	// 登录结果（passenger_auth_records.login_result）
 	// LoginResultFailed 登录失败（含验证码错误、账号冻结等）。
 	LoginResultFailed int16 = 0
@@ -86,6 +101,11 @@ type SmsCodeStore interface {
 	AcquireResendLock(ctx context.Context, scene, mobile string, ttl time.Duration) (bool, error)
 	// ReleaseResendLock 释放发送锁（短信通道异常时回滚冷却期，避免用户白等 60 秒）。
 	ReleaseResendLock(ctx context.Context, scene, mobile string) error
+	// IncrSendCount 累加发送计数并返回累加后的值；键首次写入时按 window 设置过期。
+	// 用于手机号/日、IP/时、设备/时三维配额与密码尝试计数（固定窗口）。
+	IncrSendCount(ctx context.Context, key string, window time.Duration) (int64, error)
+	// ResetSendCount 清零计数键（如密码登录成功后解除锁定）。
+	ResetSendCount(ctx context.Context, key string) error
 }
 
 // SmsSender 短信通道抽象，由外部供应商实现；本项目提供日志实现，不打印验证码。
@@ -189,9 +209,19 @@ func (uc *AuthUsecase) SendLoginCode(ctx context.Context, mobile, scene string) 
 	return uc.SendSmsCode(ctx, 0, mobile, scene)
 }
 
-// SendSmsCode 发送指定场景的验证码。
+// SendSmsCode 发送指定场景的验证码（不带客户端来源，仅手机号维度限流）。
 // 换绑手机号场景必须携带乘客身份：原号需与账号一致，新号需未被其他账号占用。
 func (uc *AuthUsecase) SendSmsCode(ctx context.Context, passengerID int64, mobile, scene string) (*SmsCodeTicket, error) {
+	return uc.SendSmsCodeWithMeta(ctx, passengerID, mobile, scene, "", "")
+}
+
+// SendSmsCodeWithMeta 发送指定场景的验证码，并按「手机号/日、IP/时、设备/时」三维限流。
+//
+// clientIP 与 deviceID 由接口层从请求头解析后传入；为空时跳过对应维度
+// （例如终端未上报设备号时不做设备维度限制）。限流顺序：
+//  1. 先抢 60 秒冷却锁，失败直接返回，不消耗日/时配额（防止双击把日配额刷掉）；
+//  2. 再校验三维配额，超限时回滚冷却锁，避免用户被双重惩罚。
+func (uc *AuthUsecase) SendSmsCodeWithMeta(ctx context.Context, passengerID int64, mobile, scene, clientIP, deviceID string) (*SmsCodeTicket, error) {
 	normalized, err := validate.Mobile(mobile)
 	if err != nil {
 		// 格式校验在 pkg/validate 完成，这里补上业务码。
@@ -213,6 +243,10 @@ func (uc *AuthUsecase) SendSmsCode(ctx context.Context, passengerID int64, mobil
 	if !acquired {
 		return nil, ErrSmsTooFrequent
 	}
+	if err := uc.checkSendQuota(ctx, normalized, clientIP, deviceID); err != nil {
+		_ = uc.codeStore.ReleaseResendLock(ctx, scene, normalized)
+		return nil, err
+	}
 
 	code := randomDigits(6)
 	verificationID := newVerificationID()
@@ -224,6 +258,8 @@ func (uc *AuthUsecase) SendSmsCode(ctx context.Context, passengerID int64, mobil
 		ExpiresAt:      time.Now().Add(SmsCodeTTL),
 	}
 	if err := uc.codeStore.SaveChallenge(ctx, challenge, SmsCodeTTL); err != nil {
+		// 挑战写入失败同样释放冷却锁，避免用户几十秒内无法重试。
+		_ = uc.codeStore.ReleaseResendLock(ctx, scene, normalized)
 		return nil, wrapInternal(err)
 	}
 	if err := uc.smsSender.SendLoginCode(ctx, normalized, code); err != nil {
@@ -287,6 +323,81 @@ func (uc *AuthUsecase) MobileLogin(ctx context.Context, in *LoginInput) (*LoginR
 	uc.log.WithContext(ctx).Infof("乘客登录成功 passenger_id=%d new=%t", passenger.ID, isNew)
 
 	return &LoginResult{Passenger: passenger, AccessToken: token, ExpiresIn: expiresIn, IsNewUser: isNew}, nil
+}
+
+// PasswordLogin 账号密码登录（UA-T0-05：老接口兼容，与验证码登录共用用户表）。
+//
+// 规则：
+//  1. 手机号注册的账号默认无密码，空哈希直接拒绝（禁止空密码登录）；
+//  2. 账号不存在与密码错误返回同一话术，避免手机号被枚举；
+//  3. 冻结/注销账号禁止登录，与验证码登录保持一致，并写登录审计。
+func (uc *AuthUsecase) PasswordLogin(ctx context.Context, in *LoginInput, password string) (*LoginResult, error) {
+	if in == nil {
+		return nil, invalidArgument("请求参数为空")
+	}
+	mobile, err := validate.Mobile(in.Mobile)
+	if err != nil {
+		return nil, invalidArgument("%s", err.Error())
+	}
+	if password == "" || len(password) > maxPasswordLength {
+		return nil, invalidArgument("密码格式不正确")
+	}
+
+	// 暴力破解防护：同一手机号 15 分钟内最多尝试 5 次，成功登录后清零。
+	// 计数在比对之前累加，因此第 6 次尝试会被直接拒绝，不再消耗 bcrypt 计算。
+	failKey := passwordFailKey(mobile)
+	attempts, err := uc.codeStore.IncrSendCount(ctx, failKey, PasswordAttemptWindow)
+	if err != nil {
+		return nil, wrapInternal(err)
+	}
+	if attempts > PasswordMaxAttempts {
+		uc.log.WithContext(ctx).Warnf("密码尝试次数超限 mobile=%s", mask.Mobile(mobile))
+		return nil, ErrPasswordAttemptLimited
+	}
+
+	hash, err := uc.passengerRepo.PasswordHashByMobile(ctx, mobile)
+	switch {
+	case errors.Is(err, ErrPassengerNotFound):
+		// 不暴露「账号是否存在」，对外统一为手机号或密码不正确。
+		uc.recordAuthAs(ctx, nil, mobile, in, AuthTypePassword, LoginResultFailed, "账号不存在")
+		return nil, ErrPasswordIncorrect
+	case err != nil:
+		return nil, wrapInternal(err)
+	case hash == "":
+		uc.recordAuthAs(ctx, nil, mobile, in, AuthTypePassword, LoginResultFailed, "未设置密码")
+		return nil, ErrPasswordNotSet
+	}
+
+	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) != nil {
+		uc.recordAuthAs(ctx, nil, mobile, in, AuthTypePassword, LoginResultFailed, "密码不正确")
+		return nil, ErrPasswordIncorrect
+	}
+
+	passenger, err := uc.passengerRepo.GetByMobile(ctx, mobile)
+	if err != nil {
+		return nil, err
+	}
+	if passenger.AccountStatus != AccountStatusNormal {
+		uc.recordAuthAs(ctx, &passenger.ID, mobile, in, AuthTypePassword, LoginResultFailed, "账号状态异常")
+		return nil, ErrAccountDisabled
+	}
+
+	token, expiresIn, err := uc.tokenIssuer.Issue(ctx, passenger)
+	if err != nil {
+		return nil, wrapInternal(err)
+	}
+	now := time.Now()
+	if err := uc.passengerRepo.UpdateLastLogin(ctx, passenger.ID, now); err != nil {
+		uc.log.WithContext(ctx).Warnf("更新最后登录时间失败 passenger_id=%d err=%v", passenger.ID, err)
+	}
+	passenger.LastLoginAt = &now
+	// 登录成功即解除锁定，避免正常用户被历史失败次数拖累。
+	if err := uc.codeStore.ResetSendCount(ctx, failKey); err != nil {
+		uc.log.WithContext(ctx).Warnf("清除密码失败计数失败 err=%v", err)
+	}
+	uc.recordAuthAs(ctx, &passenger.ID, mobile, in, AuthTypePassword, LoginResultSuccess, "")
+	uc.log.WithContext(ctx).Infof("乘客密码登录成功 passenger_id=%d", passenger.ID)
+	return &LoginResult{Passenger: passenger, AccessToken: token, ExpiresIn: expiresIn, IsNewUser: false}, nil
 }
 
 // verifyLoginChallenge 校验登录场景验证码并一次性消费；失败分支写登录审计。
@@ -585,12 +696,17 @@ func trimBearer(authorization string) string {
 	return value
 }
 
-// recordAuth 写登录审计；失败不阻断主流程（审计降级）。
+// recordAuth 写登录审计（认证方式固定为手机号验证码）；失败不阻断主流程（审计降级）。
 func (uc *AuthUsecase) recordAuth(ctx context.Context, passengerID *int64, mobile string, in *LoginInput, result int16, reason string) {
+	uc.recordAuthAs(ctx, passengerID, mobile, in, AuthTypeMobileSms, result, reason)
+}
+
+// recordAuthAs 写登录审计并指定认证方式（1 验证码 / 3 密码）；失败不阻断主流程。
+func (uc *AuthUsecase) recordAuthAs(ctx context.Context, passengerID *int64, mobile string, in *LoginInput, authType int16, result int16, reason string) {
 	record := &PassengerAuthRecord{
 		PassengerID:   passengerID,
 		Mobile:        mask.Mobile(mobile),
-		AuthType:      AuthTypeMobileSms,
+		AuthType:      authType,
 		LoginResult:   result,
 		FailureReason: reason,
 		CreatedAt:     time.Now(),
@@ -606,6 +722,57 @@ func (uc *AuthUsecase) recordAuth(ctx context.Context, passengerID *int64, mobil
 	if err := uc.authRecordRepo.Create(ctx, record); err != nil {
 		uc.log.WithContext(ctx).Warnf("写登录审计失败 err=%v", err)
 	}
+}
+
+// quotaCheck 单个限流维度的检查项。
+type quotaCheck struct {
+	// dimension 维度名（mobile / ip / device），仅用于拼键与日志。
+	dimension string
+	// value 维度取值（手机号、IP 或设备号）；拼键前先哈希，避免明文进缓存。
+	value string
+	// limit 窗口内允许的次数上限。
+	limit int64
+	// window 固定窗口长度。
+	window time.Duration
+	// message 超限时面向用户的提示。
+	message string
+}
+
+// checkSendQuota 三维配额校验：手机号/日、IP/时、设备/时。
+// 任一维度超限即拒绝；计数在校验时累加，因此发送失败也会占用配额（与主流短信服务一致）。
+func (uc *AuthUsecase) checkSendQuota(ctx context.Context, mobile, clientIP, deviceID string) error {
+	checks := []quotaCheck{
+		{"mobile", mobile, SmsDailyLimitPerMobile, 24 * time.Hour, "该手机号今日验证码发送次数已达上限，请明天再试"},
+	}
+	if ip := strings.TrimSpace(clientIP); ip != "" {
+		checks = append(checks, quotaCheck{"ip", ip, SmsHourlyLimitPerIP, time.Hour, "当前网络验证码发送过于频繁，请稍后再试"})
+	}
+	if device := strings.TrimSpace(deviceID); device != "" {
+		checks = append(checks, quotaCheck{"device", device, SmsHourlyLimitPerDevice, time.Hour, "当前设备验证码发送过于频繁，请稍后再试"})
+	}
+
+	for _, check := range checks {
+		count, err := uc.codeStore.IncrSendCount(ctx, smsQuotaKey(check.dimension, check.value), check.window)
+		if err != nil {
+			return wrapInternal(err)
+		}
+		if count > check.limit {
+			return tooManyRequests(check.message)
+		}
+	}
+	return nil
+}
+
+// smsQuotaKey 生成配额计数键：维度值先做 sha256，缓存里不出现手机号/IP/设备号明文。
+func smsQuotaKey(dimension, value string) string {
+	sum := sha256.Sum256([]byte(dimension + "|" + strings.TrimSpace(value)))
+	return "ride:sms:quota:" + dimension + ":" + hex.EncodeToString(sum[:])[:32]
+}
+
+// passwordFailKey 密码尝试计数键：手机号先哈希，缓存里不出现明文手机号。
+func passwordFailKey(mobile string) string {
+	sum := sha256.Sum256([]byte("password|" + strings.TrimSpace(mobile)))
+	return "ride:auth:password:fail:" + hex.EncodeToString(sum[:])[:32]
 }
 
 // hashSmsCode 验证码哈希：sha256(verification_id|code)，仅存哈希不存明文（AGENT.md §10）。

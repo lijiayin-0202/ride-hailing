@@ -29,6 +29,12 @@ service PassengerAccount {
     option (google.api.http) = {post: "/api/v1/passenger/auth/mobile-login" body: "*"};
   }
 
+  // 账号密码登录（T0 兼容老接口，UA-T0-05）。
+  // 手机号验证码注册的账号未设置密码，调用会返回「请使用验证码登录」。
+  rpc PasswordLogin(PasswordLoginRequest) returns (MobileLoginReply) {
+    option (google.api.http) = {post: "/api/v1/passenger/auth/password-login" body: "*"};
+  }
+
   // 个人中心聚合查询（T2）。一次返回资料、实名状态、积分、券/未读消息摘要。
   rpc GetProfile(GetProfileRequest) returns (GetProfileReply) {
     option (google.api.http) = {get: "/api/v1/passenger/profile"};
@@ -113,6 +119,21 @@ service PassengerAccount {
   rpc ListLoginRecords(ListLoginRecordsRequest) returns (ListLoginRecordsReply) {
     option (google.api.http) = {get: "/api/v1/passenger/login-records"};
   }
+
+  // 查询紧急联系人（T2）。未维护时返回 has_contact=false，不报错。
+  rpc GetEmergencyContact(GetEmergencyContactRequest) returns (GetEmergencyContactReply) {
+    option (google.api.http) = {get: "/api/v1/passenger/emergency-contact"};
+  }
+
+  // 保存紧急联系人（T2）。一名乘客只保留一条，重复保存覆盖原记录。
+  rpc SaveEmergencyContact(SaveEmergencyContactRequest) returns (SaveEmergencyContactReply) {
+    option (google.api.http) = {put: "/api/v1/passenger/emergency-contact" body: "*"};
+  }
+
+  // 内部服务实名校验（只提供 gRPC，不暴露 HTTP 路由）：
+  // 供订单/行程模块在下单前拦截未实名乘客，身份以入参 passenger_id 为准，
+  // 由内部服务调用链路保证可信，不经过乘客端。
+  rpc CheckRealNameStatus(CheckRealNameStatusRequest) returns (CheckRealNameStatusReply);
 }
 
 // ---------------------------- 公共结构 ----------------------------
@@ -181,6 +202,15 @@ message MobileLoginReply {
   int32 expires_in_seconds = 3;
   // 是否为新注册乘客（前端可据此引导实名/新人券）
   bool is_new_user = 4;
+}
+
+// 账号密码登录（老接口兼容）。密码只用于本次比对，服务端只保存 bcrypt 哈希。
+message PasswordLoginRequest {
+  string mobile = 1;
+  // 密码明文（要求 HTTPS 传输）
+  string password = 2;
+  // 客户端设备编号，用于登录审计与登录设备登记
+  string device_id = 3;
 }
 
 // ---------------------------- 个人中心 ----------------------------
@@ -520,4 +550,54 @@ message GetRealNameReply {
   string verified_at = 6;
   // 驳回原因，仅当 record_status = 3 时有值
   string reject_reason = 7;
+}
+
+// ---------------------------- 紧急联系人 ----------------------------
+
+// 紧急联系人（passenger_emergency_contacts）。
+// 手机号属于敏感数据，接口只返回脱敏值。
+message EmergencyContact {
+  // 联系人姓名，2-30 个字符
+  string contact_name = 1;
+  // 联系人手机号（脱敏，如 138****0000）
+  string contact_mobile = 2;
+  // 与乘客关系，如 配偶/父母/朋友，可为空
+  string relation = 3;
+  string updated_at = 4;
+}
+
+message GetEmergencyContactRequest {}
+
+message GetEmergencyContactReply {
+  // 是否已维护紧急联系人；false 时 contact 为空
+  bool has_contact = 1;
+  EmergencyContact contact = 2;
+}
+
+message SaveEmergencyContactRequest {
+  string contact_name = 1;
+  // 大陆手机号；服务端规范化后入库，接口返回脱敏值
+  string contact_mobile = 2;
+  string relation = 3;
+}
+
+message SaveEmergencyContactReply {
+  EmergencyContact contact = 1;
+}
+
+// ---------------------------- 内部实名校验 ----------------------------
+
+message CheckRealNameStatusRequest {
+  int64 passenger_id = 1;
+}
+
+message CheckRealNameStatusReply {
+  // 0 未认证 1 认证中 2 已认证 3 已驳回
+  int32 real_name_status = 1;
+  // 是否已实名：仅「已认证」为 true
+  bool verified = 2;
+  // 账号状态：0 冻结 1 正常 2 注销
+  int32 account_status = 3;
+  // 是否允许下单：已实名且账号正常（调用方只需判断该字段，避免漏判冻结账号）
+  bool allowed = 4;
 }

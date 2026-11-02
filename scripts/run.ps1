@@ -148,6 +148,18 @@ if (-not $env:RIDE_JWT_SECRET) {
     Write-Host "Generated RIDE_JWT_SECRET once, saved to .env (git-ignored)." -ForegroundColor DarkGray
 }
 
+# ---- 2b. stable data encryption key (AES-256-GCM) -------------------------
+# required at startup: the service fails closed without it (name/id-card cipher columns).
+if (-not $env:RIDE_DATA_KEY) { $env:RIDE_DATA_KEY = $fileEnv["RIDE_DATA_KEY"] }
+if (-not $env:RIDE_DATA_KEY) {
+    $keyBytes = New-Object byte[] 32
+    $keyRng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    $keyRng.GetBytes($keyBytes)
+    $env:RIDE_DATA_KEY = [Convert]::ToBase64String($keyBytes)
+    Set-EnvLine $envFile "RIDE_DATA_KEY" $env:RIDE_DATA_KEY
+    Write-Host "Generated RIDE_DATA_KEY once, saved to .env (git-ignored)." -ForegroundColor DarkGray
+}
+
 # ---- 3. local debugging defaults -----------------------------------------
 if (-not $env:RIDE_SMS_ECHO_CODE) { $env:RIDE_SMS_ECHO_CODE = "1" }
 if (-not $env:RIDE_ID_CARD_SALT) { $env:RIDE_ID_CARD_SALT = "local-dev-salt-2026" }

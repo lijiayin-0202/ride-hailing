@@ -5,10 +5,13 @@ package biz
 
 import (
 	"context"
+	"encoding/base64"
 	"strings"
 	"testing"
 
 	"github.com/go-kratos/kratos/v2/log"
+
+	"github.com/lijayin-0202/radish-ride-service/pkg/securebox"
 )
 
 const (
@@ -56,8 +59,12 @@ func newRealNameTestFixture(passengerStatus int16) (*RealNameUsecase, *fakeRealN
 	passengers.byMobile[passenger.Mobile] = passenger
 
 	repo := newFakeRealNameRepo()
-	// 盐值缺失属于启动期错误（fail-closed），测试固定注入测试盐。
-	uc, err := NewRealNameUsecase(repo, passengers, RealNameSalt("test-salt"), log.DefaultLogger)
+	// 盐值/加密密钥缺失属于启动期错误（fail-closed），测试固定注入。
+	box, err := securebox.NewFromBase64(base64.StdEncoding.EncodeToString([]byte("0123456789abcdef0123456789abcdef")))
+	if err != nil {
+		panic(err)
+	}
+	uc, err := NewRealNameUsecase(repo, passengers, RealNameSalt("test-salt"), box, log.DefaultLogger)
 	if err != nil {
 		panic(err)
 	}
@@ -83,8 +90,21 @@ func TestSubmitRealNameSuccess(t *testing.T) {
 	if record.IDCardHash == "" || strings.Contains(record.IDCardHash, testIDCardValid) {
 		t.Fatalf("证件哈希不应为空且不得包含明文: %q", record.IDCardHash)
 	}
+	// UA-T0-09：姓名与证件必须另有 AES-256-GCM 密文，且密文不得包含明文。
+	if !strings.HasPrefix(record.RealNameCipher, "v1:") {
+		t.Fatalf("姓名密文缺失或版本前缀不正确: %q", record.RealNameCipher)
+	}
+	if !strings.HasPrefix(record.IDCardCipher, "v1:") {
+		t.Fatalf("证件密文缺失或版本前缀不正确: %q", record.IDCardCipher)
+	}
+	if strings.Contains(record.RealNameCipher, testRealNameAlice) || strings.Contains(record.IDCardCipher, testIDCardValid) {
+		t.Fatal("密文不得包含明文")
+	}
 	if repo.record == nil || repo.record.Status != RealNameStatusPending {
 		t.Fatalf("仓储未写入认证记录")
+	}
+	if repo.record.RealNameCipher != record.RealNameCipher {
+		t.Fatal("仓储应保存姓名字段密文")
 	}
 }
 

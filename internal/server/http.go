@@ -46,7 +46,9 @@ func NewHTTPServer(
 
 	srv := http.NewServer(opts...)
 
-	// 模块1 用户账号与个人中心（成员A）｜任务号：待登记（agent/07 §1：注册处需标注任务号）
+	// 模块1 用户账号与个人中心（成员A）
+	// 任务号：UA-T0-01~09（登录/实名）、UA-T1-01（地址）、UA-T2（个人中心/档案维护）
+	// 约定（agent/07 §1）：共享注册文件只追加本模块的注册行与注释，避免多人覆盖。
 	v1.RegisterPassengerAccountHTTPServer(srv, passengerAccount)
 
 	return srv

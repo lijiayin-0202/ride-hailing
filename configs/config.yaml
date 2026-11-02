@@ -18,7 +18,13 @@ data:
     source: ${RIDE_DATABASE_SOURCE}
   redis:
     # 验证码存储与限流使用；连接不可用时自动退化为进程内存储（仅单实例开发/联调）
+    # 字段口径与后台服务 radish-admin-server 的 config.Redis 对齐（口令/逻辑库/集群）
     network: tcp
     addr: 127.0.0.1:6379
     read_timeout: 0.5s
     write_timeout: 0.5s
+    # 口令只允许通过部署环境注入（RIDE_REDIS_PASSWORD），禁止在此落明文
+    password: ""
+    db: 0
+    use_cluster: false
+    cluster_addrs: []

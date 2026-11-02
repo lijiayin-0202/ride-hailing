@@ -42,6 +42,8 @@ type PassengerAccountService struct {
 	realNameUC *biz.RealNameUsecase
 	// loginDeviceUC 登录设备登记、设备列表与登录记录查询。
 	loginDeviceUC *biz.LoginDeviceUsecase
+	// emergencyContactUC 紧急联系人查询与保存（档案维护）。
+	emergencyContactUC *biz.EmergencyContactUsecase
 
 	// log 结构化日志；本层禁止打印 SQL 与敏感明文。
 	log *log.Helper
@@ -57,18 +59,20 @@ func NewPassengerAccountService(
 	notificationUC *biz.NotificationUsecase,
 	realNameUC *biz.RealNameUsecase,
 	loginDeviceUC *biz.LoginDeviceUsecase,
+	emergencyContactUC *biz.EmergencyContactUsecase,
 	logger log.Logger,
 ) *PassengerAccountService {
 	return &PassengerAccountService{
-		authUC:         authUC,
-		passengerUC:    passengerUC,
-		addressUC:      addressUC,
-		couponUC:       couponUC,
-		pointUC:        pointUC,
-		notificationUC: notificationUC,
-		realNameUC:     realNameUC,
-		loginDeviceUC:  loginDeviceUC,
-		log:            log.NewHelper(log.With(logger, "module", "service/passenger_account")),
+		authUC:             authUC,
+		passengerUC:        passengerUC,
+		addressUC:          addressUC,
+		couponUC:           couponUC,
+		pointUC:            pointUC,
+		notificationUC:     notificationUC,
+		realNameUC:         realNameUC,
+		loginDeviceUC:      loginDeviceUC,
+		emergencyContactUC: emergencyContactUC,
+		log:                log.NewHelper(log.With(logger, "module", "service/passenger_account")),
 	}
 }
 
@@ -86,7 +90,9 @@ func (s *PassengerAccountService) SendLoginSmsCode(ctx context.Context, req *v1.
 		}
 		passengerID = id
 	}
-	ticket, err := s.authUC.SendSmsCode(ctx, passengerID, req.GetMobile(), scene)
+	// 三维限流需要客户端来源：IP 取自转发头，设备号取自 X-Device-Id（缺省时跳过设备维度）。
+	ip, _, _ := clientMeta(ctx)
+	ticket, err := s.authUC.SendSmsCodeWithMeta(ctx, passengerID, req.GetMobile(), scene, ip, clientDeviceID(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -135,6 +141,49 @@ func (s *PassengerAccountService) MobileLogin(ctx context.Context, req *v1.Mobil
 		Location:    location,
 	}); err != nil {
 		// RecordLogin 内部已记录告警（含 device_id），这里不再重复打印，也不影响登录结果。
+		_ = err
+	}
+	return &v1.MobileLoginReply{
+		Passenger:        toPassengerSummary(result.Passenger),
+		AccessToken:      result.AccessToken,
+		ExpiresInSeconds: result.ExpiresIn,
+		IsNewUser:        result.IsNewUser,
+	}, nil
+}
+
+// PasswordLogin 账号密码登录（T0 兼容老接口，无需登录态）。
+func (s *PassengerAccountService) PasswordLogin(ctx context.Context, req *v1.PasswordLoginRequest) (*v1.MobileLoginReply, error) {
+	ip, ua, _ := clientMeta(ctx)
+	deviceInfo := device.Parse(ua)
+	location := iputil.ResolveLocation(ip)
+
+	result, err := s.authUC.PasswordLogin(ctx, &biz.LoginInput{
+		Mobile:        req.GetMobile(),
+		DeviceID:      req.GetDeviceId(),
+		DeviceName:    deviceInfo.Name,
+		DeviceModel:   deviceInfo.Model,
+		OSName:        deviceInfo.OSName,
+		OSVersion:     deviceInfo.OSVersion,
+		AppVersion:    clientVersion(ctx),
+		ClientIP:      ip,
+		LoginLocation: location,
+		UserAgent:     ua,
+	}, req.GetPassword())
+	if err != nil {
+		return nil, err
+	}
+
+	// 与验证码登录一致：登记登录设备，失败不影响登录主流程。
+	if err := s.loginDeviceUC.RecordLogin(ctx, result.Passenger.ID, &biz.DeviceLoginInfo{
+		DeviceID:    req.GetDeviceId(),
+		DeviceName:  deviceInfo.Name,
+		DeviceModel: deviceInfo.Model,
+		OSName:      deviceInfo.OSName,
+		OSVersion:   deviceInfo.OSVersion,
+		AppVersion:  clientVersion(ctx),
+		IP:          ip,
+		Location:    location,
+	}); err != nil {
 		_ = err
 	}
 	return &v1.MobileLoginReply{
@@ -608,6 +657,15 @@ func clientVersion(ctx context.Context) string {
 	return strings.TrimSpace(tr.RequestHeader().Get("X-Client-Version"))
 }
 
+// clientDeviceID 客户端设备编号（请求头 X-Device-Id）。
+// 仅用于验证码设备维度限流与登录审计，属于客户端自生成的编号，不是硬件唯一标识。
+func clientDeviceID(ctx context.Context) string {
+	if tr, ok := transport.FromServerContext(ctx); ok {
+		return strings.TrimSpace(tr.RequestHeader().Get("X-Device-Id"))
+	}
+	return ""
+}
+
 // clientMeta 提取客户端来源信息，用于登录审计（不记录敏感明文）。
 //
 // IP 顺序：X-Forwarded-For > X-Real-Ip > TCP 连接地址。
@@ -681,6 +739,63 @@ func toProtoAddress(a *biz.Address) *v1.PassengerAddress {
 		address.LastUsedAt = formatTime(*a.LastUsedAt)
 	}
 	return address
+}
+
+// ---------------------------- 紧急联系人 ----------------------------
+
+// GetEmergencyContact 查询紧急联系人；未维护时返回 has_contact=false，不返回错误。
+func (s *PassengerAccountService) GetEmergencyContact(ctx context.Context, _ *v1.GetEmergencyContactRequest) (*v1.GetEmergencyContactReply, error) {
+	passengerID, err := s.currentPassengerID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	contact, err := s.emergencyContactUC.Get(ctx, passengerID)
+	if err != nil {
+		return nil, err
+	}
+	if contact == nil {
+		return &v1.GetEmergencyContactReply{HasContact: false}, nil
+	}
+	return &v1.GetEmergencyContactReply{HasContact: true, Contact: toEmergencyContact(contact)}, nil
+}
+
+// SaveEmergencyContact 保存（新增或覆盖）紧急联系人；一人一条，重复保存走覆盖。
+func (s *PassengerAccountService) SaveEmergencyContact(ctx context.Context, req *v1.SaveEmergencyContactRequest) (*v1.SaveEmergencyContactReply, error) {
+	passengerID, err := s.currentPassengerID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	contact, err := s.emergencyContactUC.Save(ctx, passengerID, req.GetContactName(), req.GetContactMobile(), req.GetRelation())
+	if err != nil {
+		return nil, err
+	}
+	return &v1.SaveEmergencyContactReply{Contact: toEmergencyContact(contact)}, nil
+}
+
+// CheckRealNameStatus 内部实名校验（只走 gRPC，不暴露 HTTP）。
+// 供订单/行程模块在下单前拦截未实名或账号冻结/注销的乘客。
+func (s *PassengerAccountService) CheckRealNameStatus(ctx context.Context, req *v1.CheckRealNameStatusRequest) (*v1.CheckRealNameStatusReply, error) {
+	check, err := s.realNameUC.CheckStatus(ctx, req.GetPassengerId())
+	if err != nil {
+		return nil, err
+	}
+	verified := check.RealNameStatus == biz.RealNameStatusVerified
+	return &v1.CheckRealNameStatusReply{
+		RealNameStatus: int32(check.RealNameStatus),
+		AccountStatus:  int32(check.AccountStatus),
+		Verified:       verified,
+		Allowed:        verified && check.AccountStatus == biz.AccountStatusNormal,
+	}, nil
+}
+
+// toEmergencyContact 组装响应；联系人手机号在此统一脱敏，禁止明文出接口。
+func toEmergencyContact(contact *biz.EmergencyContact) *v1.EmergencyContact {
+	return &v1.EmergencyContact{
+		ContactName:   contact.ContactName,
+		ContactMobile: mask.Mobile(contact.ContactMobile),
+		Relation:      contact.Relation,
+		UpdatedAt:     formatTime(contact.UpdatedAt),
+	}
 }
 
 // formatTime 统一输出 ISO 8601（+08:00）。

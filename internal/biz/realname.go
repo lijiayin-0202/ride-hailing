@@ -20,6 +20,7 @@ import (
 
 	"github.com/lijayin-0202/radish-ride-service/internal/conf"
 	"github.com/lijayin-0202/radish-ride-service/pkg/mask"
+	"github.com/lijayin-0202/radish-ride-service/pkg/securebox"
 	"github.com/lijayin-0202/radish-ride-service/pkg/validate"
 )
 
@@ -33,7 +34,11 @@ type RealNameRecord struct {
 	RealNameMasked string
 	IDCardMasked   string
 	IDCardHash     string
-	Status         int16
+	// RealNameCipher 姓名 AES-256-GCM 密文（v1:<base64>），仅供服务端核验/审计解密。
+	RealNameCipher string
+	// IDCardCipher 身份证号 AES-256-GCM 密文，接口与日志都不输出。
+	IDCardCipher string
+	Status       int16
 	RejectReason   string
 	SubmittedAt    time.Time
 	VerifiedAt     *time.Time
@@ -69,7 +74,25 @@ type RealNameUsecase struct {
 	repo          RealNameRepo
 	passengerRepo PassengerRepo
 	idCardSalt    string
-	log           *log.Helper
+	// box 敏感字段加解密器；密钥缺失时构造失败，服务拒绝启动。
+	box *securebox.Box
+	log *log.Helper
+}
+
+// ProvideRealNameBox 从 conf 读取 AES-256-GCM 密钥并构造加密器（wire 注入）。
+//
+// fail-closed：密钥缺失或长度不合法时直接拒绝启动。
+// 原因：密文列若写入空值，等于把「已加密」变成事实上的不加密，
+// 且历史数据无法区分，事后无法补救。
+func ProvideRealNameBox() (*securebox.Box, error) {
+	key := conf.DataKey()
+	if key == "" {
+		// 报错要可执行：直接告诉使用者怎么生成与注入，避免只看到 "拒绝启动" 无从下手。
+		return nil, fmt.Errorf("未配置敏感字段加密密钥（环境变量 %s）：拒绝启动。"+
+			"最简做法：运行 scripts/run.ps1（自动生成并写入 .env 后加载）；"+
+			"手工方式见 README「初始化与启动」，密钥必须是 32 字节 base64 且长期固定", conf.EnvDataKey)
+	}
+	return securebox.NewFromBase64(key)
 }
 
 // NewRealNameUsecase 构造函数（wire 注入）。
@@ -78,7 +101,10 @@ type RealNameUsecase struct {
 // 安全策略（fail-closed）：盐值缺失时直接拒绝启动。
 // 原因：身份证号取值空间很小（地区码+生日+顺序码），若退化为写死的公共盐，
 // 加盐 SHA-256 用 GPU 可被穷举反查，等价于明文入库。
-func NewRealNameUsecase(repo RealNameRepo, passengerRepo PassengerRepo, idCardSalt RealNameSalt, logger log.Logger) (*RealNameUsecase, error) {
+func NewRealNameUsecase(repo RealNameRepo, passengerRepo PassengerRepo, idCardSalt RealNameSalt, box *securebox.Box, logger log.Logger) (*RealNameUsecase, error) {
+	if box == nil {
+		return nil, fmt.Errorf("敏感字段加密器未初始化（环境变量 %s）：拒绝启动", conf.EnvDataKey)
+	}
 	salt := strings.TrimSpace(string(idCardSalt))
 	if salt == "" {
 		return nil, fmt.Errorf("未配置实名认证证件哈希盐值（环境变量 %s）：为避免身份证号被反查，拒绝启动", conf.EnvIDCardSalt)
@@ -87,6 +113,7 @@ func NewRealNameUsecase(repo RealNameRepo, passengerRepo PassengerRepo, idCardSa
 		repo:          repo,
 		passengerRepo: passengerRepo,
 		idCardSalt:    salt,
+		box:           box,
 		log:           log.NewHelper(log.With(logger, "module", "biz/realname")),
 	}, nil
 }
@@ -103,6 +130,34 @@ func (uc *RealNameUsecase) Get(ctx context.Context, passengerID int64) (*RealNam
 		return nil, err
 	}
 	return &RealNameInfo{PassengerStatus: passenger.RealNameStatus, Record: record}, nil
+}
+
+// RealNameCheck 内部实名校验结果：同时返回实名状态与账号状态。
+// 下单前判定必须两者都满足，冻结/注销账号即使已实名也不允许继续下单。
+type RealNameCheck struct {
+	// RealNameStatus 0 未认证 1 认证中 2 已认证 3 已驳回。
+	RealNameStatus int16
+	// AccountStatus 0 冻结 1 正常 2 注销。
+	AccountStatus int16
+}
+
+// CheckStatus 供内部服务（订单/行程模块）在下单前校验实名与账号状态。
+//
+// 该能力只通过 gRPC 暴露，不提供 HTTP 路由：乘客端无法用他人身份调用，
+// 避免出现「查别人是否实名」的越权面。是否允许下单由调用方按
+// 「RealNameStatus=2 且 AccountStatus=1」判断，本层不做业务决策。
+func (uc *RealNameUsecase) CheckStatus(ctx context.Context, passengerID int64) (*RealNameCheck, error) {
+	if passengerID <= 0 {
+		return nil, invalidArgument("乘客ID不合法")
+	}
+	passenger, err := uc.passengerRepo.GetByID(ctx, passengerID)
+	if err != nil {
+		return nil, err
+	}
+	return &RealNameCheck{
+		RealNameStatus: passenger.RealNameStatus,
+		AccountStatus:  passenger.AccountStatus,
+	}, nil
 }
 
 // Submit 提交实名认证。
@@ -150,11 +205,24 @@ func (uc *RealNameUsecase) Submit(ctx context.Context, passengerID int64, realNa
 		return nil, businessConflict("证件信息校验未通过，请核对后重新提交")
 	}
 
+	// AES-256-GCM 密文（UA-T0-09）：明文只在本次调用内存中存在，
+	// 落库的是密文 + 掩码 + 哈希，日志只打掩码。
+	nameCipher, err := uc.box.Encrypt(name)
+	if err != nil {
+		return nil, wrapInternal(err)
+	}
+	idCardCipher, err := uc.box.Encrypt(idCard)
+	if err != nil {
+		return nil, wrapInternal(err)
+	}
+
 	record, err := uc.repo.Submit(ctx, &RealNameRecord{
 		PassengerID:    passengerID,
 		RealNameMasked: mask.RealName(name),
 		IDCardMasked:   mask.IDCard(idCard),
 		IDCardHash:     hash,
+		RealNameCipher: nameCipher,
+		IDCardCipher:   idCardCipher,
 		Status:         RealNameStatusPending,
 	})
 	if err != nil {

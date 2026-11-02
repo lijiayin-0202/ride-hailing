@@ -20,6 +20,8 @@ const (
 	EnvJWTSecret      = "RIDE_JWT_SECRET"
 	EnvSmsEchoCode    = "RIDE_SMS_ECHO_CODE"
 	EnvIDCardSalt     = "RIDE_ID_CARD_SALT"
+	// EnvDataKey 敏感字段 AES-256-GCM 密钥（base64 编码的 32 字节）。
+	EnvDataKey = "RIDE_DATA_KEY"
 )
 
 // DatabaseSource 数据库连接串（敏感项）。空值表示未注入，由调用方决定回退策略。
@@ -47,3 +49,8 @@ func SmsEchoCodeEnabled() bool {
 
 // IDCardSalt 身份证哈希盐值（敏感项）。空值与未配置等价，由调用方使用兜底策略并告警。
 func IDCardSalt() string { return strings.TrimSpace(os.Getenv(EnvIDCardSalt)) }
+
+// DataKey 敏感字段加密密钥（敏感项，base64 编码的 32 字节）。
+// 空值表示未注入，由调用方按 fail-closed 策略拒绝启动：
+// 没有密钥就无法保证密文可解，退化为不加密等于把明文写进库。
+func DataKey() string { return strings.TrimSpace(os.Getenv(EnvDataKey)) }

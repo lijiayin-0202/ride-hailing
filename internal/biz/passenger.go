@@ -68,6 +68,9 @@ type PassengerRepo interface {
 	UpdateMobile(ctx context.Context, id int64, mobile string) error
 	// WalletBalance 返回 passenger_wallets.balance（元）。
 	WalletBalance(ctx context.Context, id int64) (float64, error)
+	// PasswordHashByMobile 返回密码哈希；账号不存在返回 ErrPassengerNotFound，
+	// 未设置密码返回空串（手机号注册账号默认无密码）。
+	PasswordHashByMobile(ctx context.Context, mobile string) (string, error)
 }
 
 // PassengerUsecase 个人中心用例。
