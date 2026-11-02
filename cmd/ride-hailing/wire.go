@@ -19,5 +19,12 @@ import (
 
 // wireApp init kratos application.
 func wireApp(*conf.Server, *conf.Data, log.Logger) (*kratos.App, func(), error) {
-	panic(wire.Build(server.ProviderSet, data.ProviderSet, biz.ProviderSet, service.ProviderSet, newApp))
+	panic(wire.Build(
+		server.ProviderSet, data.ProviderSet, biz.ProviderSet, service.ProviderSet,
+		wire.Bind(new(service.StationApplication), new(*biz.StationUsecase)),
+		wire.Bind(new(service.ServiceAreaAdminApplication), new(*biz.ServiceAreaAdminUsecase)),
+		wire.Bind(new(service.DispatchCallbackApplication), new(*biz.DispatchStateUsecase)),
+		wire.Bind(new(service.DispatchApplication), new(*biz.AutoDispatchUsecase)),
+		newApp,
+	))
 }

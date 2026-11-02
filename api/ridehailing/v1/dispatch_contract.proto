@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+package ridehailing.v1;
+
+option go_package = "github.com/lijayin-0202/radish-ride-service/api/ridehailing/v1;v1";
+
+import "google/api/annotations.proto";
+
+// 模块 4 实现本服务，模块 3 通过生成的客户端下发一条派单指令。
+service VehicleDispatchGatewayService {
+  rpc SendDispatchInstruction(SendDispatchInstructionRequest) returns (SendDispatchInstructionReply);
+}
+
+// 模块 3 实现本服务，模块 4 用它上报车辆确认或拒绝事实。
+service DispatchCallbackService {
+  rpc ReportVehicleDispatchResponse(ReportVehicleDispatchResponseRequest) returns (ReportVehicleDispatchResponseReply);
+}
+
+// 模块 2 实现本服务，模块 3 用它同步派单阶段及最终结果。
+service OrderDispatchSyncService {
+  rpc SyncDispatchState(SyncOrderDispatchStateRequest) returns (SyncOrderDispatchStateReply);
+}
+
+// 模块 2 实现本服务，模块 3 查询订单是否可进入派单流程。
+service OrderDispatchQueryService {
+  rpc GetDispatchableOrder(GetDispatchableOrderRequest) returns (GetDispatchableOrderReply);
+}
+
+// 模块 3 提供自动派单 HTTP 入口，调用方只传订单 ID。
+service DispatchService {
+  rpc AssignOrder(AssignOrderRequest) returns (AssignOrderReply) {
+    option (google.api.http) = { post: "/v1/dispatch/orders/{order_id}/assign" };
+  }
+}
+
+enum VehicleDispatchResponseType {
+  // 未指定不能进入派单状态机，避免把协议默认值当作车辆拒绝。
+  VEHICLE_DISPATCH_RESPONSE_TYPE_UNSPECIFIED = 0;
+  VEHICLE_DISPATCH_RESPONSE_TYPE_ACCEPTED = 1;
+  VEHICLE_DISPATCH_RESPONSE_TYPE_REJECTED = 2;
+}
+
+enum OrderDispatchEventType {
+  ORDER_DISPATCH_EVENT_TYPE_UNSPECIFIED = 0;
+  ORDER_DISPATCH_EVENT_TYPE_ATTEMPT_PENDING = 1;
+  // ASSIGNED 仅表示车辆已确认；真正接驾状态仍由订单/行程模块后续维护。
+  ORDER_DISPATCH_EVENT_TYPE_ASSIGNED = 2;
+  ORDER_DISPATCH_EVENT_TYPE_RETRYING = 3;
+  ORDER_DISPATCH_EVENT_TYPE_EXHAUSTED = 4;
+  ORDER_DISPATCH_EVENT_TYPE_REJECTED = 5;
+  ORDER_DISPATCH_EVENT_TYPE_TIMED_OUT = 6;
+}
+
+message GeoPoint {
+  // 站点 ID 与地址均为指令快照；站点后续编辑不能改变已经下发的派单事实。
+  double longitude = 1;
+  double latitude = 2;
+  int64 station_id = 3;
+  string address = 4;
+}
+
+message DispatchInstruction {
+  // idempotency_key 与 dispatch_no 固定为同一次派单，模块 4 重试时不得重复下发给车辆。
+  string idempotency_key = 1;
+  int64 dispatch_id = 2;
+  string dispatch_no = 3;
+  int64 order_id = 4;
+  int64 vehicle_id = 5;
+  int32 attempt_no = 6;
+  GeoPoint pickup = 7;
+  GeoPoint dropoff = 8;
+  // 服务端时间戳是唯一确认窗口依据，车辆端本地时间只用于展示。
+  int64 confirmation_deadline_unix_milli = 9;
+}
+
+message SendDispatchInstructionRequest {
+  DispatchInstruction instruction = 1;
+}
+
+message SendDispatchInstructionReply {
+  // 仅表示模块 4 已接收投递，不表示车辆已确认接受该订单。
+  bool accepted_for_delivery = 1;
+}
+
+message ReportVehicleDispatchResponseRequest {
+  // 回调携带订单和车辆事实，服务端据此防止跨订单、跨车辆的错误确认。
+  string idempotency_key = 1;
+  int64 dispatch_id = 2;
+  int64 order_id = 3;
+  int64 vehicle_id = 4;
+  VehicleDispatchResponseType response_type = 5;
+  string rejection_reason = 6;
+  int64 responded_at_unix_milli = 7;
+}
+
+message ReportVehicleDispatchResponseReply {
+  bool accepted = 1;
+}
+
+message SyncOrderDispatchStateRequest {
+  // 订单状态同步由 Outbox 重试，模块 2 必须按此键去重处理。
+  string idempotency_key = 1;
+  int64 order_id = 2;
+  int64 dispatch_id = 3;
+  int64 vehicle_id = 4;
+  OrderDispatchEventType event_type = 5;
+  string reason = 6;
+  int64 occurred_at_unix_milli = 7;
+}
+
+message SyncOrderDispatchStateReply {
+  bool accepted = 1;
+}
+
+message GetDispatchableOrderRequest {
+  int64 order_id = 1;
+}
+
+message GetDispatchableOrderReply {
+  int64 order_id = 1;
+  int64 service_area_id = 2;
+  GeoPoint pickup = 3;
+  GeoPoint dropoff = 4;
+  string order_status = 5;
+  bool is_cancelled = 6;
+  // 模块 2 对订单可调度性的最终判断；模块 3 不依据本地缓存绕过它。
+  bool is_schedulable = 7;
+  int64 reserved_at_unix_milli = 8;
+}
+
+message AssignOrderRequest {
+  // 调用方仅提交订单，车辆由模块 3 根据最新可调度状态自动选择。
+  int64 order_id = 1;
+}
+
+message AssignOrderReply {
+  int64 dispatch_id = 1;
+  string dispatch_no = 2;
+  int64 order_id = 3;
+  int64 vehicle_id = 4;
+  int32 attempt_no = 5;
+  string dispatch_strategy = 6;
+  double candidate_score = 7;
+  double estimated_pickup_distance_km = 8;
+  int32 estimated_arrival_min = 9;
+  int32 status = 10;
+  int64 confirmation_deadline_unix_milli = 11;
+  // true 表示幂等复用已有活跃派单，调用方无需再次创建车辆任务。
+  bool reused_active_attempt = 12;
+}

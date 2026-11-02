@@ -1,147 +1,79 @@
-// 数据访问层（repo）。
-// 模块1 用户账号与个人中心（成员A）接入 PostgreSQL 主库与 Redis 缓存，
-// 其余模块的 repo 请各自新增文件，不要复用本文件的连接初始化逻辑。
 package data
 
 import (
 	"context"
 	"fmt"
-	"strings"
-	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/wire"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
 
 	"github.com/lijayin-0202/radish-ride-service/internal/biz"
 	"github.com/lijayin-0202/radish-ride-service/internal/conf"
 )
 
-// ProviderSet is data providers.
+// ProviderSet 集中管理 PostgreSQL、后台工作者及跨模块适配器的注入关系。
 var ProviderSet = wire.NewSet(
 	NewData,
-
-	// 模块1 用户账号与个人中心（成员A）
-	NewPassengerRepo,
-	NewPassengerAuthRecordRepo,
-	NewAddressRepo,
-	NewCouponRepo,
-	NewPointRepo,
-	NewNotificationRepo,
-	NewRealNameRepo,
-	NewLoginDeviceRepo,
-	NewLoginRecordRepo,
-	NewSmsCodeStore,
-	NewSmsSender,
-	NewTokenIssuer,
+	NewDispatchRepository,
+	NewServiceAreaRepository,
+	NewStationRepository,
+	NewVehicleRepository,
+	NewDispatchOutboxDispatcher,
+	NewOrderDispatchOutboxDispatcher,
+	NewDispatchTimeoutWorker,
+	NewDispatchReassignmentDispatcher,
+	// 订单查询网关以配置方式延迟连接模块 2，供 HTTP 自动派单入口使用。
+	NewConfiguredOrderQueryGateway,
+	wire.Bind(new(biz.ServiceAreaRepository), new(*ServiceAreaRepository)),
+	wire.Bind(new(biz.ServiceAreaAdminRepository), new(*ServiceAreaRepository)),
+	wire.Bind(new(biz.StationRepository), new(*StationRepository)),
+	wire.Bind(new(biz.VehicleRepository), new(*VehicleRepository)),
+	wire.Bind(new(biz.DispatchRecordRepository), new(*DispatchRepository)),
+	wire.Bind(new(biz.CandidateVehicleRepository), new(*DispatchRepository)),
+	wire.Bind(new(biz.DispatchStateRepository), new(*DispatchRepository)),
+	wire.Bind(new(biz.PendingDispatchAttemptRepository), new(*DispatchRepository)),
 )
 
-// Data 数据层资源集合。
+// Data 数据层资源集合（空模板，预留位置）。
+//
+// 团队接入 MySQL / Redis / MQ 时，把客户端挂到本结构体上，例如：
+//
+//	type Data struct {
+//	    db    *gorm.DB
+//	    redis *redis.Client
+//	    log   *log.Helper
+//	}
 type Data struct {
-	// db PostgreSQL 连接池（主库，AGENT.md §2 固定 PostgreSQL）。
-	db *pgxpool.Pool
-	// rdb Redis 客户端；不可用时为 nil，验证码退化为进程内存储。
-	rdb *redis.Client
-	// log 结构化日志。
-	log *log.Helper
+	pool                *pgxpool.Pool
+	dispatchIDGenerator biz.DispatchIDGenerator
+	log                 *log.Helper
 }
 
 // NewData 初始化数据层连接，返回清理函数用于优雅退出。
-//
-// 连接串来源优先级：环境变量 RIDE_DATABASE_SOURCE > 配置文件 data.database.source。
-// 主库固定 PostgreSQL（AGENT.md §2），驱动名不是 postgres 时直接失败，避免误连 MySQL。
 func NewData(c *conf.Data, logger log.Logger) (*Data, func(), error) {
-	helper := log.NewHelper(log.With(logger, "module", "data"))
-
-	driver := strings.ToLower(strings.TrimSpace(c.GetDatabase().GetDriver()))
-	if driver != "" && driver != "postgres" && driver != "postgresql" && driver != "pgx" {
-		return nil, nil, fmt.Errorf("不支持的数据库驱动 %q，本项目主库固定为 PostgreSQL", driver)
+	helper := log.NewHelper(logger)
+	if c.GetDatabase().GetDriver() != "postgres" {
+		return nil, nil, fmt.Errorf("unsupported database driver: %s", c.GetDatabase().GetDriver())
 	}
-
-	// 配置读取唯一入口：internal/conf（.agent/04 §2.1，业务层禁止裸用 os.Getenv）。
-	// yaml 中只保留 ${RIDE_DATABASE_SOURCE} 占位，由 conf 统一展开。
-	dsn := conf.DatabaseSource()
-	if dsn == "" {
-		dsn = conf.ExpandEnvPlaceholder(c.GetDatabase().GetSource())
+	if c.GetDatabase().GetSource() == "" {
+		return nil, nil, fmt.Errorf("postgres source is required")
 	}
-	if dsn == "" {
-		return nil, nil, fmt.Errorf("数据库连接串为空：请注入环境变量 %s（configs/config.yaml 仅保留 ${%s} 占位）",
-			conf.EnvDatabaseSource, conf.EnvDatabaseSource)
-	}
-
-	poolCfg, err := pgxpool.ParseConfig(dsn)
+	// 节点号由环境变量提供，避免多实例生成碰撞的 BIGINT 派单主键。
+	dispatchIDGenerator, err := NewDispatchIDGenerator()
 	if err != nil {
-		return nil, nil, fmt.Errorf("解析数据库连接串失败: %w", err)
+		return nil, nil, fmt.Errorf("configure dispatch ID generator: %w", err)
 	}
-	// 连接池参数：并发低的开发环境也至少保留 8 个连接，避免登录高峰排队。
-	if poolCfg.MaxConns < 4 {
-		poolCfg.MaxConns = 8
-	}
-	// 连接最长存活 1 小时，规避服务端空闲断连；每分钟健康检查一次。
-	poolCfg.MaxConnLifetime = time.Hour
-	poolCfg.HealthCheckPeriod = time.Minute
 
-	pool, err := pgxpool.NewWithConfig(context.Background(), poolCfg)
+	// 数据源必须由本地忽略配置或部署平台注入，避免把数据库凭据写入版本库。
+	pool, err := pgxpool.New(context.Background(), c.GetDatabase().GetSource())
 	if err != nil {
-		return nil, nil, fmt.Errorf("创建数据库连接池失败: %w", err)
-	}
-	// 启动即 Ping：连接不可用直接在启动阶段失败，避免"起来了但全量接口 500"。
-	// 说明：NewData 由 wire 在进程初始化阶段调用，尚无请求上下文，故使用独立超时上下文。
-	pingCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-	defer cancel()
-	if err := pool.Ping(pingCtx); err != nil {
-		pool.Close()
-		return nil, nil, fmt.Errorf("数据库连接不可用: %w", err)
-	}
-
-	d := &Data{db: pool, log: helper}
-
-	// Redis：验证码短期存储与限流使用。连接不可用时不阻断启动，
-	// 由 NewSmsCodeStore 退化为进程内存储并打印告警（仅限单实例开发/联调）。
-	if addr := strings.TrimSpace(c.GetRedis().GetAddr()); addr != "" {
-		rdb := redis.NewClient(&redis.Options{
-			Addr:         addr,
-			DialTimeout:  2 * time.Second,
-			ReadTimeout:  durationOrDefault(c.GetRedis().GetReadTimeout().AsDuration(), 500*time.Millisecond),
-			WriteTimeout: durationOrDefault(c.GetRedis().GetWriteTimeout().AsDuration(), 500*time.Millisecond),
-		})
-		redisCtx, redisCancel := context.WithTimeout(context.Background(), 2*time.Second)
-		if err := rdb.Ping(redisCtx).Err(); err != nil {
-			helper.Warnf("Redis 不可用（%s），验证码将使用进程内存储: %v", addr, err)
-			_ = rdb.Close()
-		} else {
-			d.rdb = rdb
-		}
-		redisCancel()
+		return nil, nil, fmt.Errorf("open postgres pool: %w", err)
 	}
 
 	cleanup := func() {
-		if d.rdb != nil {
-			_ = d.rdb.Close()
-		}
 		pool.Close()
 		helper.Info("closing the data resources")
 	}
-	return d, cleanup, nil
+	return &Data{pool: pool, dispatchIDGenerator: dispatchIDGenerator, log: helper}, cleanup, nil
 }
-
-func durationOrDefault(v, def time.Duration) time.Duration {
-	if v <= 0 {
-		return def
-	}
-	return v
-}
-
-// 编译期断言：确保 data 层实现 biz 定义的仓库接口。
-var (
-	_ biz.PassengerRepo           = (*passengerRepo)(nil)
-	_ biz.PassengerAuthRecordRepo = (*passengerAuthRecordRepo)(nil)
-	_ biz.AddressRepo             = (*addressRepo)(nil)
-	_ biz.CouponRepo              = (*couponRepo)(nil)
-	_ biz.PointRepo               = (*pointRepo)(nil)
-	_ biz.NotificationRepo        = (*notificationRepo)(nil)
-	_ biz.RealNameRepo            = (*realNameRepo)(nil)
-	_ biz.LoginDeviceRepo         = (*loginDeviceRepo)(nil)
-	_ biz.LoginRecordRepo         = (*loginRecordRepo)(nil)
-)
