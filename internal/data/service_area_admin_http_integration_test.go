@@ -26,6 +26,7 @@ func TestServiceAreaToStationAdministrationLifecycle(t *testing.T) {
 	areaUsecase := biz.NewServiceAreaAdminUsecase(repository)
 	stationUsecase := biz.NewStationUsecase(newStationRepositoryForTest(t, pool), repository)
 	server := httptest.NewServer(appserver.NewHTTPServer(&conf.Server{}, log.NewStdLogger(io.Discard),
+		(*service.PassengerAccountService)(nil),
 		service.NewStationService(stationUsecase), service.NewServiceAreaAdminService(areaUsecase), service.NewDispatchService(nil)))
 	t.Cleanup(server.Close)
 
