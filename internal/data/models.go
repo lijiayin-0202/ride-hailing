@@ -120,7 +120,7 @@ type quoteOptionRow struct {
 
 func (quoteOptionRow) TableName() string { return "fare_quote_options" }
 
-type orderRow struct {
+type OrderRow struct {
 	ID                     int64 `gorm:"primaryKey"`
 	OrderNo                string
 	PassengerID            int64
@@ -169,10 +169,10 @@ type orderRow struct {
 	CreatedAt              time.Time
 }
 
-func (orderRow) TableName() string { return "trip_orders" }
+func (OrderRow) TableName() string { return "trip_orders" }
 
 type orderDetailRow struct {
-	orderRow
+	OrderRow
 	ServiceTypeCode    string
 	ServiceDisplayName string
 	PlateNo            string

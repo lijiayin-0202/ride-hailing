@@ -38,9 +38,9 @@ func (r *rideRepo) CreateOrder(ctx context.Context, order *biz.Order) (*biz.Orde
 	return order, false, nil
 }
 
-func (r *rideRepo) createOrderTransaction(tx *gorm.DB, order *biz.Order, row *orderRow) error {
+func (r *rideRepo) createOrderTransaction(tx *gorm.DB, order *biz.Order, row *OrderRow) error {
 	var activeCount int64
-	if err := tx.Model(&orderRow{}).
+	if err := tx.Model(&OrderRow{}).
 		Where("passenger_id = ? AND status IN (0, 1, 2, 3)", order.PassengerID).
 		Count(&activeCount).Error; err != nil {
 		return err
@@ -173,11 +173,11 @@ func (r *rideRepo) executeCommandTransaction(tx *gorm.DB, command *biz.OrderComm
 	if err := tx.Create(row).Error; err != nil || command.ResultStatus == command.CurrentStatus {
 		return err
 	}
-	lockedRow := &orderRow{ID: locked.ID, OrderStatus: locked.Status, PassengerCouponID: locked.PassengerCouponID}
+	lockedRow := &OrderRow{ID: locked.ID, OrderStatus: locked.Status, PassengerCouponID: locked.PassengerCouponID}
 	return r.transitionOrder(tx, lockedRow, command)
 }
 
-func (r *rideRepo) transitionOrder(tx *gorm.DB, locked *orderRow, command *biz.OrderCommand) error {
+func (r *rideRepo) transitionOrder(tx *gorm.DB, locked *OrderRow, command *biz.OrderCommand) error {
 	updates := map[string]any{"status": int16(command.ResultStatus), "updated_at": time.Now()}
 	if command.Type == "CANCEL" {
 		updates["cancelled_at"] = time.Now()
@@ -189,7 +189,7 @@ func (r *rideRepo) transitionOrder(tx *gorm.DB, locked *orderRow, command *biz.O
 	} else if command.Type == "UNLOCK_AND_START" {
 		updates["started_at"] = time.Now()
 	}
-	result := tx.Model(&orderRow{}).
+	result := tx.Model(&OrderRow{}).
 		Where("id = ? AND passenger_id = ? AND status = ?", command.OrderID, command.PassengerID, int16(command.CurrentStatus)).Updates(updates)
 	if result.Error != nil {
 		return result.Error

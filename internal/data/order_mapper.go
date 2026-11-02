@@ -12,7 +12,7 @@ import (
 	"github.com/lijayin-0202/radish-ride-service/internal/biz"
 )
 
-func (r *rideRepo) newOrderRow(order *biz.Order) (*orderRow, error) {
+func (r *rideRepo) newOrderRow(order *biz.Order) (*OrderRow, error) {
 	orderNo, err := newOrderNo(order.RequestedAt)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func (r *rideRepo) newOrderRow(order *biz.Order) (*orderRow, error) {
 	}
 	pickupSnapshot, _ := json.Marshal(order.Origin)
 	dropoffSnapshot, _ := json.Marshal(order.Destination)
-	row := &orderRow{
+	row := &OrderRow{
 		OrderNo: orderNo, PassengerID: order.PassengerID, ServiceAreaID: order.ServiceAreaID,
 		OrderStatus:     int16(order.Status),
 		PickupStationID: pickupStationID, DropoffStationID: dropoffStationID,
@@ -103,16 +103,16 @@ func (r *rideRepo) orderDetailsQuery(ctx context.Context) *gorm.DB {
         o.estimated_duration_min * 60 AS estimated_duration_s,
         COALESCE(ROUND(o.actual_distance_km * 1000)::integer, 0) AS actual_distance_m,
         COALESCE(o.actual_duration_min * 60, 0) AS actual_duration_s,
-        o.pickup_snapshot->>'place_id' AS pickup_place_id,
-        o.pickup_snapshot->>'name' AS pickup_name,
-        o.pickup_snapshot->>'address' AS pickup_address,
-        COALESCE((o.pickup_snapshot->>'longitude')::double precision, 0) AS pickup_longitude,
-        COALESCE((o.pickup_snapshot->>'latitude')::double precision, 0) AS pickup_latitude,
-        o.dropoff_snapshot->>'place_id' AS destination_place_id,
-        o.dropoff_snapshot->>'name' AS destination_name,
-        o.dropoff_snapshot->>'address' AS destination_address,
-        COALESCE((o.dropoff_snapshot->>'longitude')::double precision, 0) AS destination_longitude,
-        COALESCE((o.dropoff_snapshot->>'latitude')::double precision, 0) AS destination_latitude,
+        COALESCE(o.pickup_snapshot->>'place_id', o.pickup_snapshot->>'PlaceID') AS pickup_place_id,
+        COALESCE(o.pickup_snapshot->>'name', o.pickup_snapshot->>'Name') AS pickup_name,
+        COALESCE(o.pickup_snapshot->>'address', o.pickup_snapshot->>'Address') AS pickup_address,
+        COALESCE((COALESCE(o.pickup_snapshot->>'longitude', o.pickup_snapshot->>'Longitude'))::double precision, 0) AS pickup_longitude,
+        COALESCE((COALESCE(o.pickup_snapshot->>'latitude', o.pickup_snapshot->>'Latitude'))::double precision, 0) AS pickup_latitude,
+        COALESCE(o.dropoff_snapshot->>'place_id', o.dropoff_snapshot->>'PlaceID') AS destination_place_id,
+        COALESCE(o.dropoff_snapshot->>'name', o.dropoff_snapshot->>'Name') AS destination_name,
+        COALESCE(o.dropoff_snapshot->>'address', o.dropoff_snapshot->>'Address') AS destination_address,
+        COALESCE((COALESCE(o.dropoff_snapshot->>'longitude', o.dropoff_snapshot->>'Longitude'))::double precision, 0) AS destination_longitude,
+        COALESCE((COALESCE(o.dropoff_snapshot->>'latitude', o.dropoff_snapshot->>'Latitude'))::double precision, 0) AS destination_latitude,
         vst.service_type_code, vst.display_name AS service_display_name,
 		v.plate_no, v.vehicle_no, v.vehicle_model AS vehicle_model, '' AS vehicle_color,
         p.payment_status,
