@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$ContainerName = 'module3-postgres-test',
     [int]$HostPort = 55432,
@@ -36,7 +36,9 @@ if ($LASTEXITCODE -ne 0) {
     throw 'Docker Engine is unavailable. Confirm that docker ps succeeds in this PowerShell session.'
 }
 
-$existingContainer = docker ps -a --filter "name=^/$ContainerName$" --format '{{.Names}}'
+# 将末尾的美元符单独拼接，避免 Windows PowerShell 5.1 把它误解析为变量表达式。
+$containerNameFilter = 'name=^/' + $ContainerName + '$'
+$existingContainer = docker ps -a --filter $containerNameFilter --format '{{.Names}}'
 # 默认拒绝复用已有容器，以免误在仍含数据的隔离库上重复执行非幂等迁移。
 if ($existingContainer -eq $ContainerName -and -not $ReuseExistingContainer) {
     throw "The test container $ContainerName already exists. The script will not overwrite it; rerun with -ReuseExistingContainer only when it is the empty test container created by this script."
