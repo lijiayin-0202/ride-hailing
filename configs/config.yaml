@@ -1,22 +1,35 @@
 server:
   http:
-    network: tcp
     addr: 0.0.0.0:8000
-    timeout: 5s
+    timeout: 60s
   grpc:
-    network: tcp
     addr: 0.0.0.0:9000
-    timeout: 5s
+    timeout: 60s
 data:
   database:
+    # 主库固定 PostgreSQL；敏感项只允许通过环境变量注入。
     driver: postgres
-    # 运行时由 RIDE_DATA_DATABASE_SOURCE 注入，禁止在仓库中保存线上凭据。
-    source: ""
+    source: ${RIDE_DATABASE_SOURCE}
   redis:
     network: tcp
     addr: 127.0.0.1:6379
-    read_timeout: 0.2s
-    write_timeout: 0.2s
+    read_timeout: 0.5s
+    write_timeout: 0.5s
+    password: ""
+    db: 0
+    use_cluster: false
+    cluster_addrs: []
+  dispatch_outbox:
+    # 留空即禁用对应跨模块网关，避免默认连接未知地址。
+    vehicle_gateway_addr: ""
+    order_gateway_addr: ""
+    dispatch_strategy: first-eligible-v1
+    dispatch_average_speed_kmh: 30
+    request_timeout: 2s
+    poll_interval: 1s
+    lease_duration: 10s
+    reassignment_poll_interval: 1s
+    order_sync_poll_interval: 1s
   security:
     # 运行时由 RIDE_DATA_SECURITY_CONTACT_PHONE_KEY 注入。
     contact_phone_key: ""

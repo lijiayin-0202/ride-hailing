@@ -2,4 +2,18 @@ package service
 
 import "github.com/google/wire"
 
-var ProviderSet = wire.NewSet(NewRideService)
+// ProviderSet is service providers.
+//
+// 服务层：每个 proto service 对应一个 XxxService 结构体，
+// 只做参数校验与用例编排，不写领域逻辑、不访问数据库。
+var ProviderSet = wire.NewSet(
+	// 订单服务（含后台派车内部接口）。
+	NewRideService,
+	// 模块1 用户账号与个人中心（成员A）
+	NewPassengerAccountService,
+	// 模块3 运营区域、站点与派单。
+	NewStationService,
+	NewServiceAreaAdminService,
+	NewDispatchCallbackService,
+	NewDispatchService,
+)

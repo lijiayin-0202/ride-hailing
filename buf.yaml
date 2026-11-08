@@ -1,6 +1,11 @@
 version: v2
 modules:
   - path: .
+    # third_party/ 下自带一份 google/api 副本（供离线 protoc 使用），
+    # 与 deps 声明的 buf.build/googleapis/googleapis 重复，需从 module 中排除，
+    # 否则 buf generate 报 "symbol google.api.http already defined"。
+    excludes:
+      - third_party
 deps:
   - buf.build/googleapis/googleapis
 lint:

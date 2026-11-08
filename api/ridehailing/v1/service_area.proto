@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package ridehailing.v1;
+
+option go_package = "github.com/lijayin-0202/radish-ride-service/api/ridehailing/v1;v1";
+
+import "google/api/annotations.proto";
+
+// 后台运营端管理区域资料和运营时段；区域删除以停运状态替代以保留历史关联。
+service ServiceAreaAdminService  {
+  rpc CreateServiceArea(CreateServiceAreaRequest) returns (ServiceAreaReply) {
+    option (google.api.http) = { post: "/v1/admin/service-areas" body: "*" };
+  }
+  rpc ListServiceAreas(ListServiceAreasRequest) returns (ListServiceAreasReply) {
+    option (google.api.http) = { get: "/v1/admin/service-areas" };
+  }
+  rpc GetServiceArea(GetServiceAreaRequest) returns (ServiceAreaDetailReply) {
+    option (google.api.http) = { get: "/v1/admin/service-areas/{id}" };
+  }
+  rpc UpdateServiceArea(UpdateServiceAreaRequest) returns (ServiceAreaReply) {
+    option (google.api.http) = { patch: "/v1/admin/service-areas/{id}" body: "*" };
+  }
+  rpc ChangeServiceAreaStatus(ChangeServiceAreaStatusRequest) returns (ServiceAreaReply) {
+    option (google.api.http) = { patch: "/v1/admin/service-areas/{id}/status" body: "*" };
+  }
+  rpc ReplaceServiceAreaSchedules(ReplaceServiceAreaSchedulesRequest) returns (ServiceAreaDetailReply) {
+    option (google.api.http) = { put: "/v1/admin/service-areas/{id}/schedules" body: "*" };
+  }
+}
+
+// 数值与 service_areas.status 保持一一对应，避免协议与数据库状态漂移。
+enum ServiceAreaStatus {
+  SERVICE_AREA_STATUS_TEMPORARILY_CLOSED = 0;
+  SERVICE_AREA_STATUS_OPERATING = 1;
+  SERVICE_AREA_STATUS_OFFLINE = 2;
+}
+
+message ServiceArea {
+  int64 id = 1;
+  string area_code = 2;
+  string area_name = 3;
+  string city_code = 4;
+  string city_name = 5;
+  string boundary_geojson = 6;
+  string service_notice = 7;
+  ServiceAreaStatus status = 8;
+}
+
+message ServiceAreaSchedule {
+  // 常规规则填 1-7（周一至周日）；特殊日期规则填 0 并提供 special_date。
+  int32 day_of_week = 1;
+  // YYYY-MM-DD；非空时覆盖同日的星期常规规则。
+  string special_date = 2;
+  // 以 0-1439 的本地分钟表达；开始值大于结束值表示跨午夜。
+  int32 start_minute = 3;
+  int32 end_minute = 4;
+  bool is_enabled = 5;
+  string notice = 6;
+}
+
+message CreateServiceAreaRequest {
+  string area_code = 1;
+  string area_name = 2;
+  string city_code = 3;
+  string city_name = 4;
+  string boundary_geojson = 5;
+  string service_notice = 6;
+  ServiceAreaStatus status = 7;
+}
+
+message ListServiceAreasRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string city_code = 3;
+  optional ServiceAreaStatus status = 4;
+}
+
+message GetServiceAreaRequest {
+  int64 id = 1;
+}
+
+// area_code 不可变，故更新请求中不提供该字段。
+message UpdateServiceAreaRequest {
+  int64 id = 1;
+  string area_name = 2;
+  string city_code = 3;
+  string city_name = 4;
+  string boundary_geojson = 5;
+  string service_notice = 6;
+}
+
+message ChangeServiceAreaStatusRequest {
+  int64 id = 1;
+  ServiceAreaStatus status = 2;
+}
+
+message ReplaceServiceAreaSchedulesRequest {
+  int64 id = 1;
+  // 空列表合法，表示该区域无可运营时段。
+  repeated ServiceAreaSchedule schedules = 2;
+}
+
+message ServiceAreaReply {
+  ServiceArea service_area = 1;
+}
+
+message ListServiceAreasReply {
+  repeated ServiceArea service_areas = 1;
+  int64 total = 2;
+}
+
+message ServiceAreaDetailReply {
+  ServiceArea service_area = 1;
+  repeated ServiceAreaSchedule schedules = 2;
+}
