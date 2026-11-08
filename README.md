@@ -19,6 +19,10 @@ make run
 
 数据库变更脚本位于 `migrations/`，包含 up/down。执行前必须在测试库评审和验证，应用启动时不会自动迁移数据库。
 
+线上（`robotaxi` schema）已具备 v1.0.0 全量结构与 `schema_versions` 台账，`0001` 的字段已在库中存在；`0002` 已执行并记录为 `2.0.0-40-member-b`，只包含两项增量：`order_commands.command_type` 枚举扩展、`order_fee_items` 金额符号约束。状态枚举（0–7）、活动订单唯一索引、成功支付唯一索引、评价唯一索引、轨迹时间索引均由基础结构提供，迁移脚本不再重复创建。
+
+> 已知数据问题：`service_areas.city_code=110100`，但 `vehicle_service_types.city_code=420100`，而演示站点名为宿迁。试算按 `city_code` 查车型，客户端传 `321300` 会返回 `no available service type`，需由数据维护方统一城市编码。
+
 ## 目录说明
 
 | 路径 | 说明 | 当前状态 |
@@ -36,7 +40,8 @@ make run
 | `internal/service/` | Proto 服务实现和 DTO 转换 | 已实现 |
 | `internal/server/http.go` | HTTP Server、中间件和 SSE 路由 | 已注册 |
 | `internal/server/grpc.go` | gRPC Server 和业务服务 | 已注册 |
-| `migrations/` | 成员 B 数据库 up/down 脚本 | 待人工执行 |
+| `migrations/` | 成员 B 数据库 up/down 脚本（0001 订单与试算、0002 状态机与支付退款） | 待人工执行 |
+| `docs/` | 状态机、时序、Kafka 事件契约、E2E 联调脚本 | 已交付 |
 | `internal/server/server.go` | `ProviderSet` | 保留 |
 | `buf.yaml` / `buf.gen.yaml` / `buf.lock` | protobuf 生成配置与依赖锁定 | 保留 |
 | `Makefile` | `init / api / build / run / test / lint / generate / docker` | 保留 |
@@ -107,5 +112,32 @@ go test ./... -cover                              # 或 make test
 
 ## 当前接口清单
 
-当前已注册的 HTTP / gRPC 业务接口包括：车型与费用试算、创建订单、订单详情、订单历史、订单命令、支付记录和行程评价；行程事件通过 HTTP SSE 与 gRPC streaming 提供。
-HTTP 默认监听 `:8000`，gRPC 默认监听 `:9000`，并挂载 `recovery / tracing / logging` 中间件。HTTP 写接口由网关注入 `X-Passenger-ID`，创建订单、订单命令和评价使用 `X-Idempotency-Key` 保证幂等。
+接口路径已与任务书 4.5 冻结契约对齐（全部位于 `/api/v1/passenger` 前缀）：
+
+| 优先级 | 接口 | 说明 |
+| --- | --- | --- |
+| T0 | `POST /api/v1/passenger/fare-options/estimate` | 车型与费用试算，返回可用车数与接驾 ETA |
+| T0 | `POST /api/v1/passenger/orders` | 创建订单（`X-Idempotency-Key`），初始状态 0 待派车 |
+| T0 | `GET /api/v1/passenger/orders/{id}/live-view` | 活动订单聚合：订单 + 车辆 + 位置 + 派单 + 核验 + 安全事件 |
+| T0 | `POST /api/v1/passenger/orders/{id}/cancel` | 取消订单，返回违约金规则与可退金额 |
+| T0 | `GET /api/v1/passenger/orders/{id}/settlement-view` | 结算聚合：金额 + 费用明细 + 支付 + 评价状态 |
+| T0 | `POST /api/v1/passenger/orders/{id}/payments` | 创建/复用支付单 |
+| T0 | `POST /api/v1/payments/callback` | 支付渠道回调（内部令牌），幂等收敛 PAID/FAILED |
+| T1 | `GET /api/v1/passenger/orders` | 历史订单游标分页 |
+| T2 | `POST /api/v1/passenger/orders/{id}/reviews` | 行程评价（一单一次，支持匿名） |
+| — | `GET /api/v1/passenger/orders/{id}/events` | SSE 行程事件流 |
+| — | `POST /api/v1/passenger/orders/{id}/commands` | 订单命令（乘客端限 `UNLOCK_AND_START`/`REQUEST_PULL_OVER`） |
+
+HTTP 默认监听 `:8000`，gRPC 默认监听 `:9000`，挂载 `recovery / tracing / logging` 中间件。
+聚合鉴权由网关注入 `X-Passenger-ID`；调度/车端推进状态与支付回调必须携带 `X-Internal-Token`（`data.security.internal_token`）。
+
+## 交付文档
+
+| 文档 | 内容 |
+| --- | --- |
+| `docs/order-state-machine.md` | 状态枚举、迁移表、命令权限、并发与幂等、状态流水字段 |
+| `docs/order-sequence.md` | T0 主链路时序图与取消退款时序 |
+| `docs/kafka-order-events.md` | 订单状态事件 topic/字段/重试/死信提案（待评审） |
+| `docs/e2e-t0.md` | 端到端联调脚本 + 失败回放 |
+
+数据库变更：`migrations/0001_member_b_orders.*`（试算与订单表）与 `migrations/0002_member_b_contract.*`（状态重映射、命令枚举、支付/评价/位置索引、取消与退款表）。两套脚本都含 up/down，执行前须在测试库评审。

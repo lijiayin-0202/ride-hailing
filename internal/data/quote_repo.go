@@ -83,29 +83,66 @@ func (r *rideRepo) FindCoupon(ctx context.Context, passengerID int64, couponID s
 	}, nil
 }
 
-func (r *rideRepo) CreateQuote(ctx context.Context, quote *biz.Quote) error {
+// ResolveServiceArea 校验起终点是否落在同一运营区域内，返回命中的区域 ID。
+// 区域内没有可用站点时返回 ErrNotFound，避免跨区下单。
+func (r *rideRepo) ResolveServiceArea(ctx context.Context, cityCode string, origin, destination biz.Place) (int64, error) {
 	var serviceArea struct{ ID int64 }
-	err := r.data.db.WithContext(ctx).Table("service_areas").
-		Select("id").Where("city_code = ? AND status = 1", quote.CityCode).
-		Order("id").Take(&serviceArea).Error
+	err := r.data.db.WithContext(ctx).Table("stations AS origin").
+		Select("origin.service_area_id AS id").
+		Joins("JOIN stations destination ON destination.service_area_id = origin.service_area_id").
+		Joins("JOIN service_areas area ON area.id = origin.service_area_id AND area.status = 1").
+		Where(`(origin.station_code = ? OR origin.station_name = ?)
+			AND (destination.station_code = ? OR destination.station_name = ?)
+			AND (origin.status = 1 AND destination.status = 1)`,
+			origin.PlaceID, origin.PlaceID, destination.PlaceID, destination.PlaceID).
+		Take(&serviceArea).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		err = r.data.db.WithContext(ctx).Table("stations AS origin").
-			Select("origin.service_area_id AS id").
-			Joins("JOIN stations destination ON destination.service_area_id = origin.service_area_id").
-			Joins("JOIN service_areas area ON area.id = origin.service_area_id AND area.status = 1").
-			Where(`(origin.station_code = ? OR origin.station_name = ?)
-				AND (destination.station_code = ? OR destination.station_name = ?)`,
-				quote.Origin.PlaceID, quote.Origin.PlaceID,
-				quote.Destination.PlaceID, quote.Destination.PlaceID).
-			Take(&serviceArea).Error
+		err = r.data.db.WithContext(ctx).Table("service_areas").
+			Select("id").Where("city_code = ? AND status = 1", cityCode).
+			Order("id").Take(&serviceArea).Error
 	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return biz.ErrNotFound
+		return 0, biz.ErrNotFound
 	}
 	if err != nil {
-		return err
+		return 0, err
 	}
-	quote.ServiceAreaID = serviceArea.ID
+	return serviceArea.ID, nil
+}
+
+// CountAvailableVehicles 统计区域内可调度车辆数。车辆状态字段由模块三维护，
+// 字段或表缺失时降级为 0（同时试算会拉长接驾 ETA），不让主链路失败。
+func (r *rideRepo) CountAvailableVehicles(ctx context.Context, serviceAreaID, serviceTypeID int64) (int32, error) {
+	if !r.data.hasTable("vehicles") {
+		return 0, nil
+	}
+	// 可调度口径：区域一致 + 在线 + 运营中 + 未被活动订单占用。
+	// vehicles 没有车型字段，车型维度的可用性由调度（模块三）决策，这里只给区域运力概览。
+	query := `SELECT COUNT(*) FROM vehicles v
+		WHERE v.service_area_id = ? AND v.online_status = 1 AND v.operation_status = 1
+		  AND NOT EXISTS (
+			SELECT 1 FROM trip_orders o
+			WHERE o.vehicle_id = v.id AND o.status BETWEEN 0 AND 4
+		  )`
+	var count int64
+	err := r.data.db.WithContext(ctx).Raw(query, serviceAreaID).Scan(&count).Error
+	if err != nil {
+		if isOptionalRelationError(err) {
+			fallback := r.data.db.WithContext(ctx).Table("vehicles").Where("service_area_id = ?", serviceAreaID)
+			if fallbackErr := fallback.Count(&count).Error; fallbackErr != nil {
+				return 0, nil
+			}
+			return int32(count), nil
+		}
+		return 0, err
+	}
+	return int32(count), nil
+}
+
+func (r *rideRepo) CreateQuote(ctx context.Context, quote *biz.Quote) error {
+	if quote.ServiceAreaID == 0 {
+		return biz.ErrInvalidArgument
+	}
 	row := quoteToRow(quote)
 	return r.data.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(row).Error; err != nil {
@@ -141,6 +178,7 @@ type quoteOptionDetail struct {
 	Payable       cents
 	PricingRuleID int64
 	Version       string
+	BaseFare      cents
 }
 
 func (r *rideRepo) GetQuote(ctx context.Context, token string) (*biz.Quote, error) {
@@ -159,7 +197,7 @@ func (r *rideRepo) GetQuote(ctx context.Context, token string) (*biz.Quote, erro
             vst.display_name, vst.tags, vst.seat_count,
             fqo.pickup_eta_seconds AS eta, fqo.original_amount AS original,
             fqo.discount_amount AS discount, fqo.payable_amount AS payable,
-            pr.id AS pricing_rule_id, pr.version`).
+            pr.id AS pricing_rule_id, pr.version, pr.base_fare`).
 		Joins("JOIN vehicle_service_types AS vst ON vst.id = fqo.service_type_id").
 		Joins("JOIN pricing_rules AS pr ON pr.id = fqo.pricing_rule_id").
 		Where("fqo.quote_id = ?", row.ID).Scan(&options).Error
@@ -180,7 +218,8 @@ func hydrateQuote(row quoteRow, options []quoteOptionDetail) *biz.Quote {
 				ID: option.ServiceTypeID, Code: option.Code, DisplayName: option.DisplayName,
 				Tags: decodeTags(option.Tags), SeatCount: option.SeatCount,
 				PickupETASeconds: option.ETA,
-				Rule:             biz.PricingRule{ID: option.PricingRuleID, Version: option.Version},
+				Rule: biz.PricingRule{ID: option.PricingRuleID, Version: option.Version,
+					BaseFareCents: int64(option.BaseFare)},
 			},
 			Fare: biz.Fare{OriginalCents: int64(option.Original),
 				DiscountCents: int64(option.Discount), PayableCents: int64(option.Payable)},

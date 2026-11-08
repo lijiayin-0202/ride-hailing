@@ -20,3 +20,6 @@ data:
   security:
     # 运行时由 RIDE_DATA_SECURITY_CONTACT_PHONE_KEY 注入。
     contact_phone_key: ""
+    # 内部服务令牌：调度/车端推进订单状态、支付回调需要携带 X-Internal-Token。
+    # 运行时由 RIDE_DATA_SECURITY_INTERNAL_TOKEN 注入；留空时仅用于本地开发放行。
+    internal_token: ""

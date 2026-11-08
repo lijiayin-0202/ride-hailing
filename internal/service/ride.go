@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,16 +16,22 @@ import (
 
 	v1 "github.com/lijayin-0202/radish-ride-service/api/ridehailing/v1"
 	"github.com/lijayin-0202/radish-ride-service/internal/biz"
+	"github.com/lijayin-0202/radish-ride-service/internal/conf"
 )
 
 type RideService struct {
 	v1.UnimplementedRideServiceServer
-	uc  *biz.RideUsecase
-	log *log.Helper
+	uc            *biz.RideUsecase
+	log           *log.Helper
+	internalToken string
 }
 
-func NewRideService(uc *biz.RideUsecase, logger log.Logger) *RideService {
-	return &RideService{uc: uc, log: log.NewHelper(logger)}
+func NewRideService(uc *biz.RideUsecase, data *conf.Data, logger log.Logger) *RideService {
+	return &RideService{
+		uc:            uc,
+		log:           log.NewHelper(logger),
+		internalToken: data.GetSecurity().GetInternalToken(),
+	}
 }
 
 func (s *RideService) EstimateFare(ctx context.Context, req *v1.EstimateFareRequest) (*v1.EstimateFareReply, error) {
@@ -64,22 +71,50 @@ func (s *RideService) CreateOrder(ctx context.Context, req *v1.CreateOrderReques
 	status, _, _, _ := biz.StatusPresentation(result.Status)
 	return &v1.CreateOrderReply{
 		OrderId: formatID("ord", result.ID), OrderNo: result.OrderNo, Status: status,
-		Matching:     &v1.MatchingInfo{ScannedVehicleCount: 0, EstimatedMatchSeconds: 3},
+		// 派单候选数量与预计匹配时长由模块三的派单结果回填，此处不再返回演示数字。
+		Matching:     &v1.MatchingInfo{ScannedVehicleCount: 0, EstimatedMatchSeconds: 0},
 		RouteSummary: routeToAPI(result), EstimatedFare: fareToAPI(result.Fare),
-		EventStreamUrl: fmt.Sprintf("/api/v1/orders/%s/events", formatID("ord", result.ID)),
+		EventStreamUrl: fmt.Sprintf("/api/v1/passenger/orders/%s/events", formatID("ord", result.ID)),
 	}, nil
 }
 
-func (s *RideService) GetOrder(ctx context.Context, req *v1.GetOrderRequest) (*v1.OrderDetailReply, error) {
+// GetOrderLiveView 返回活动订单聚合详情。
+func (s *RideService) GetOrderLiveView(ctx context.Context, req *v1.GetOrderRequest) (*v1.OrderLiveViewReply, error) {
 	passenger, orderID, err := authenticatedOrder(ctx, req.GetOrderId())
 	if err != nil {
 		return nil, err
 	}
-	order, usecaseErr := s.uc.GetOrder(ctx, passenger, orderID)
+	view, usecaseErr := s.uc.GetLiveView(ctx, passenger, orderID)
 	if usecaseErr != nil {
 		return nil, serviceError(usecaseErr)
 	}
-	return orderToAPI(order), nil
+	return liveViewToAPI(view), nil
+}
+
+// GetOrderSettlement 返回结算聚合视图。
+func (s *RideService) GetOrderSettlement(ctx context.Context, req *v1.GetOrderRequest) (*v1.SettlementReply, error) {
+	passenger, orderID, err := authenticatedOrder(ctx, req.GetOrderId())
+	if err != nil {
+		return nil, err
+	}
+	settlement, usecaseErr := s.uc.GetSettlement(ctx, passenger, orderID)
+	if usecaseErr != nil {
+		return nil, serviceError(usecaseErr)
+	}
+	return settlementToAPI(settlement), nil
+}
+
+// CancelOrder 取消订单，返回取消费用与可退金额。
+func (s *RideService) CancelOrder(ctx context.Context, req *v1.CancelOrderRequest) (*v1.CancelOrderReply, error) {
+	passenger, orderID, err := authenticatedOrder(ctx, req.GetOrderId())
+	if err != nil {
+		return nil, err
+	}
+	cancellation, usecaseErr := s.uc.CancelOrder(ctx, passenger, orderID, req.GetReasonCode())
+	if usecaseErr != nil {
+		return nil, serviceError(usecaseErr)
+	}
+	return cancellationToAPI(cancellation), nil
 }
 
 func (s *RideService) StreamOrderEvents(req *v1.StreamOrderEventsRequest, stream v1.RideService_StreamOrderEventsServer) error {
@@ -114,8 +149,15 @@ func (s *RideService) ExecuteOrderCommand(ctx context.Context, req *v1.ExecuteOr
 	if err != nil {
 		return nil, err
 	}
+	commandType := strings.ToUpper(req.GetCommandType())
+	if commandType == biz.CommandCancel {
+		return nil, kratoserrors.BadRequest("INVALID_ARGUMENT", "use /api/v1/passenger/orders/{id}/cancel")
+	}
+	if !biz.IsPassengerCommand(commandType) && !s.internalCaller(ctx) {
+		return nil, kratoserrors.Forbidden("FORBIDDEN", "internal token required for this command")
+	}
 	command := &biz.OrderCommand{
-		OrderID: orderID, PassengerID: passenger, Type: strings.ToUpper(req.GetCommandType()),
+		OrderID: orderID, PassengerID: passenger, Type: commandType,
 		IdempotencyKey: requestHeader(ctx, "X-Idempotency-Key"), BoardingCode: req.GetBoardingCode(),
 		ReasonCode: req.GetReasonCode(), ClientLongitude: req.GetClientLongitude(), ClientLatitude: req.GetClientLatitude(),
 	}
@@ -140,7 +182,41 @@ func (s *RideService) CreatePayment(ctx context.Context, req *v1.CreatePaymentRe
 	if usecaseErr != nil {
 		return nil, serviceError(usecaseErr)
 	}
-	return &v1.CreatePaymentReply{PaymentId: formatID("pay", payment.ID), PaymentNo: payment.PaymentNo, Amount: toYuan(payment.Amount), Currency: "CNY", PaymentStatus: paymentStatus(payment.Status)}, nil
+	return &v1.CreatePaymentReply{
+		PaymentId: formatID("pay", payment.ID), PaymentNo: payment.PaymentNo,
+		Amount: toYuan(payment.Amount), Currency: "CNY", PaymentStatus: paymentStatusText(payment.Status),
+	}, nil
+}
+
+// HandlePaymentCallback 处理支付渠道回调，重复回调按幂等返回。
+func (s *RideService) HandlePaymentCallback(ctx context.Context, req *v1.PaymentCallbackRequest) (*v1.PaymentCallbackReply, error) {
+	if !s.internalCaller(ctx) {
+		return nil, kratoserrors.Forbidden("FORBIDDEN", "internal token required")
+	}
+	occurredAt := time.Now()
+	if req.GetOccurredAt() != "" {
+		parsed, err := time.Parse(time.RFC3339, req.GetOccurredAt())
+		if err != nil {
+			return nil, kratoserrors.BadRequest("INVALID_ARGUMENT", "occurredAt must be RFC3339")
+		}
+		occurredAt = parsed
+	}
+	result, err := s.uc.HandlePaymentCallback(ctx, &biz.PaymentCallback{
+		PaymentNo:      req.GetPaymentNo(),
+		ChannelTradeNo: req.GetChannelTradeNo(),
+		Result:         req.GetResult(),
+		AmountCents:    int64(math.Round(req.GetAmount() * 100)),
+		OccurredAt:     occurredAt,
+	})
+	if err != nil {
+		return nil, serviceError(err)
+	}
+	return &v1.PaymentCallbackReply{
+		PaymentId: formatID("pay", result.Payment.ID), PaymentNo: result.Payment.PaymentNo,
+		PaymentStatus: paymentStatusText(result.Payment.Status),
+		OrderId:       formatID("ord", result.OrderID), Amount: toYuan(result.Payment.Amount),
+		Duplicated: result.Duplicated,
+	}, nil
 }
 
 func (s *RideService) SubmitReview(ctx context.Context, req *v1.SubmitReviewRequest) (*v1.SubmitReviewReply, error) {
@@ -151,7 +227,10 @@ func (s *RideService) SubmitReview(ctx context.Context, req *v1.SubmitReviewRequ
 	if err != nil {
 		return nil, err
 	}
-	review, usecaseErr := s.uc.SubmitReview(ctx, &biz.Review{OrderID: orderID, PassengerID: passenger, Rating: req.GetRating(), Tags: req.GetTagCodes(), Comment: req.GetComment()})
+	review, usecaseErr := s.uc.SubmitReview(ctx, &biz.Review{
+		OrderID: orderID, PassengerID: passenger, Rating: req.GetRating(),
+		Tags: req.GetTagCodes(), Comment: req.GetComment(), Anonymous: req.GetAnonymous(),
+	})
 	if usecaseErr != nil {
 		return nil, serviceError(usecaseErr)
 	}
@@ -176,11 +255,24 @@ func (s *RideService) ListOrderHistory(ctx context.Context, req *v1.ListOrderHis
 		reply.Items = append(reply.Items, &v1.OrderHistoryItem{
 			OrderId: formatID("ord", order.ID), OrderNo: order.OrderNo,
 			OriginName: order.Origin.Name, DestinationName: order.Destination.Name,
-			DepartureAt: order.RequestedAt.Format(time.RFC3339), VehicleDisplayName: order.ServiceType.DisplayName,
+			DepartureAt: order.RequestedAt.Format(time.RFC3339), VehicleDisplayName: vehicleDisplayName(order),
 			PaidAmount: toYuan(order.Fare.PayableCents), Currency: "CNY", Status: status, StatusText: text,
 		})
 	}
 	return reply, nil
+}
+
+// vehicleDisplayName 优先使用订单关联车辆信息，缺失时回退车型名称。
+func vehicleDisplayName(order *biz.Order) string {
+	if order.Vehicle != nil {
+		if order.Vehicle.PlateNo != "" {
+			return order.Vehicle.PlateNo
+		}
+		if order.Vehicle.Model != "" {
+			return order.Vehicle.Model
+		}
+	}
+	return order.ServiceType.DisplayName
 }
 
 func (s *RideService) StreamOrderEventsHTTP(ctx kratoshttp.Context) error {
@@ -231,4 +323,12 @@ func (s *RideService) serveSSE(ctx kratoshttp.Context, response http.ResponseWri
 		case <-ticker.C:
 		}
 	}
+}
+
+// internalCaller 校验内部令牌。未配置令牌时（本地开发）放行，配置后必须匹配。
+func (s *RideService) internalCaller(ctx context.Context) bool {
+	if s.internalToken == "" {
+		return true
+	}
+	return requestHeader(ctx, "X-Internal-Token") == s.internalToken
 }

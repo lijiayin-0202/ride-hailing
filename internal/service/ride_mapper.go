@@ -71,7 +71,12 @@ func placeFromAPI(place *v1.Place) biz.Place {
 func quoteToAPI(quote *biz.Quote) *v1.EstimateFareReply {
 	reply := &v1.EstimateFareReply{QuoteToken: quote.Token, ExpiresAt: quote.ExpiresAt.Format(time.RFC3339), Route: &v1.RouteSummary{OriginName: quote.Origin.Name, DestinationName: quote.Destination.Name, DistanceMeters: quote.DistanceMeters, EstimatedDurationSeconds: quote.EstimatedDurationSeconds, Polyline: quote.Polyline}}
 	for _, option := range quote.Options {
-		reply.Quotes = append(reply.Quotes, &v1.ServiceQuote{ServiceTypeId: option.ServiceType.Code, DisplayName: option.ServiceType.DisplayName, Tags: option.ServiceType.Tags, SeatCount: option.ServiceType.SeatCount, PickupEtaSeconds: option.ServiceType.PickupETASeconds, Fare: fareToAPI(option.Fare)})
+		reply.Quotes = append(reply.Quotes, &v1.ServiceQuote{
+			ServiceTypeId: option.ServiceType.Code, DisplayName: option.ServiceType.DisplayName,
+			Tags: option.ServiceType.Tags, SeatCount: option.ServiceType.SeatCount,
+			PickupEtaSeconds: option.ServiceType.PickupETASeconds, Fare: fareToAPI(option.Fare),
+			AvailableVehicleCount: option.AvailableVehicles,
+		})
 	}
 	if quote.Coupon != nil {
 		reply.AppliedCoupon = &v1.AppliedCoupon{CouponId: formatID("ucp", quote.Coupon.PassengerCoupon), CouponName: quote.Coupon.Name, DiscountAmount: toYuan(quote.Coupon.DiscountCents), ValidUntil: quote.Coupon.ValidUntil.Format(time.RFC3339)}
@@ -79,18 +84,105 @@ func quoteToAPI(quote *biz.Quote) *v1.EstimateFareReply {
 	return reply
 }
 
-func orderToAPI(order *biz.Order) *v1.OrderDetailReply {
+// liveViewToAPI 组装活动订单聚合详情。
+func liveViewToAPI(view *biz.OrderLiveView) *v1.OrderLiveViewReply {
+	order := view.Order
 	status, text, step, actions := biz.StatusPresentation(order.Status)
-	reply := &v1.OrderDetailReply{OrderId: formatID("ord", order.ID), OrderNo: order.OrderNo, Status: status, StatusText: text, Step: step, Route: routeToAPI(order), Fare: fareToAPI(order.Fare), AvailableActions: actions, LastEventId: strconv.FormatInt(order.LastEventID, 10)}
+	reply := &v1.OrderLiveViewReply{
+		OrderId: formatID("ord", order.ID), OrderNo: order.OrderNo,
+		Status: status, StatusText: text, Step: step,
+		Route: routeToAPI(order), Fare: fareToAPI(order.Fare),
+		AvailableActions: actions, LastEventId: strconv.FormatInt(order.LastEventID, 10),
+	}
 	if order.Vehicle != nil {
-		reply.Vehicle = &v1.VehicleInfo{VehicleId: formatID("veh", order.Vehicle.ID), PlateNo: order.Vehicle.PlateNo, Model: order.Vehicle.Model, ServiceTypeName: order.Vehicle.ServiceTypeName, BodyNo: order.Vehicle.BodyNo, Color: order.Vehicle.Color}
+		reply.Vehicle = &v1.VehicleInfo{
+			VehicleId: formatID("veh", order.Vehicle.ID), PlateNo: order.Vehicle.PlateNo,
+			Model: order.Vehicle.Model, ServiceTypeName: order.Vehicle.ServiceTypeName,
+			BodyNo: order.Vehicle.BodyNo, Color: order.Vehicle.Color,
+		}
 	}
 	reply.Pickup = &v1.PickupInfo{BoardingCodeSuffix: order.BoardingCodeSuffix}
 	if order.ArrivedAt != nil {
 		reply.Pickup.ArrivedAt = order.ArrivedAt.Format(time.RFC3339)
 		reply.Pickup.WaitDeadline = order.ArrivedAt.Add(3 * time.Minute).Format(time.RFC3339)
 	}
+	progress := biz.BuildTripProgress(order, view.Location)
+	reply.TripProgress = &v1.TripProgress{
+		RemainingDistanceMeters:  progress.RemainingDistanceMeters,
+		RemainingDurationSeconds: progress.RemainingDurationSeconds,
+		SpeedKmh:                 progress.SpeedKMH,
+		ProgressPercent:          progress.ProgressPercent,
+	}
+	if view.Location != nil {
+		reply.Location = &v1.LatestLocation{
+			Longitude: view.Location.Longitude, Latitude: view.Location.Latitude,
+			SpeedKmh: view.Location.SpeedKMH, ReportedAt: formatTime(&view.Location.ReportedAt),
+		}
+	}
+	if view.Dispatch != nil {
+		reply.Dispatch = &v1.DispatchSummary{
+			Strategy: view.Dispatch.Strategy, StrategyVersion: view.Dispatch.StrategyVersion,
+			DispatchStatus: view.Dispatch.Status, VehicleResponse: view.Dispatch.VehicleResponse,
+			AttemptCount: view.Dispatch.AttemptCount, PickupEtaSeconds: view.Dispatch.PickupETASeconds,
+			PickupDistanceMeters: view.Dispatch.PickupDistanceMeters,
+			DispatchedAt:         formatTime(view.Dispatch.DispatchedAt),
+		}
+	}
+	if view.Boarding != nil {
+		reply.Boarding = &v1.BoardingVerification{
+			Method: view.Boarding.Method, Status: view.Boarding.Status,
+			VerifiedAt: formatTime(view.Boarding.VerifiedAt), Attempts: view.Boarding.Attempts,
+		}
+	}
+	for _, event := range view.Safety {
+		reply.SafetyEvents = append(reply.SafetyEvents, &v1.SafetyEvent{
+			EventId: strconv.FormatInt(event.ID, 10), Type: event.Type, Level: event.Level,
+			Description: event.Description, Status: event.Status,
+			OccurredAt: formatTime(&event.OccurredAt),
+		})
+	}
 	return reply
+}
+
+// settlementToAPI 组装结算视图。
+func settlementToAPI(settlement *biz.Settlement) *v1.SettlementReply {
+	order := settlement.Order
+	status, text, _, _ := biz.StatusPresentation(order.Status)
+	reply := &v1.SettlementReply{
+		OrderId: formatID("ord", order.ID), OrderNo: order.OrderNo,
+		Status: status, StatusText: text,
+		PayableAmount: toYuan(order.Fare.PayableCents), PaidAmount: toYuan(settlement.PaidCents),
+		RefundedAmount: toYuan(settlement.RefundedCents), Currency: "CNY",
+	}
+	for _, item := range settlement.FeeItems {
+		reply.FeeItems = append(reply.FeeItems, &v1.FareItem{Type: item.Type, Name: item.Name, Amount: toYuan(item.AmountCents)})
+	}
+	if settlement.Payment != nil {
+		reply.Payment = &v1.SettlementPayment{
+			PaymentId: formatID("pay", settlement.Payment.PaymentID),
+			PaymentNo: settlement.Payment.PaymentNo, Method: settlement.Payment.Method,
+			Status: settlement.Payment.Status, Amount: toYuan(settlement.Payment.AmountCents),
+			PaidAt: formatTime(settlement.Payment.PaidAt),
+		}
+	}
+	if settlement.Review != nil {
+		reply.Review = &v1.SettlementReview{
+			Submitted: settlement.Review.Submitted, Rating: settlement.Review.Rating,
+			Tags: settlement.Review.Tags, SubmittedAt: formatTime(settlement.Review.SubmittedAt),
+		}
+	}
+	return reply
+}
+
+func cancellationToAPI(cancellation *biz.Cancellation) *v1.CancelOrderReply {
+	status, text, _, _ := biz.StatusPresentation(biz.OrderStatusCancelled)
+	return &v1.CancelOrderReply{
+		OrderId: formatID("ord", cancellation.OrderID), OrderStatus: status, StatusText: text,
+		CancelFeeAmount: toYuan(cancellation.FeeCents), CancelFeeRule: cancellation.RuleCode,
+		CancelFeeDescription: biz.CancelRuleText(cancellation.RuleCode),
+		RefundAmount:         toYuan(cancellation.RefundCents), Currency: "CNY",
+		CancelledAt: formatTime(&cancellation.CancelledAt),
+	}
 }
 
 func routeToAPI(order *biz.Order) *v1.RouteSummary {
@@ -110,9 +202,24 @@ func eventToAPI(event biz.OrderEvent) *v1.OrderEvent {
 	return &v1.OrderEvent{EventId: strconv.FormatInt(event.ID, 10), EventType: event.EventType, OccurredAt: event.OccurredAt.Format(time.RFC3339Nano), OrderStatus: status, StatusText: text, Longitude: event.Longitude, Latitude: event.Latitude, SpeedKmh: event.SpeedKMH}
 }
 
+func formatTime(value *time.Time) string {
+	if value == nil || value.IsZero() {
+		return ""
+	}
+	return value.Format(time.RFC3339)
+}
+
 func formatID(prefix string, id int64) string { return fmt.Sprintf("%s_%d", prefix, id) }
 func toYuan(value int64) float64              { return float64(value) / 100 }
 
-func paymentStatus(status int16) string {
-	return map[int16]string{0: "PENDING", 1: "PROCESSING", 2: "PAID", 3: "FAILED", 4: "CLOSED", 5: "PARTIAL_REFUNDED", 6: "REFUNDED"}[status]
+func paymentStatusText(status int16) string {
+	return map[int16]string{
+		biz.PaymentStatusPending:           "PENDING",
+		biz.PaymentStatusProcessing:        "PROCESSING",
+		biz.PaymentStatusPaid:              "PAID",
+		biz.PaymentStatusFailed:            "FAILED",
+		biz.PaymentStatusClosed:            "CLOSED",
+		biz.PaymentStatusPartiallyRefunded: "PARTIAL_REFUNDED",
+		biz.PaymentStatusRefunded:          "REFUNDED",
+	}[status]
 }

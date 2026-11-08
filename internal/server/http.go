@@ -32,7 +32,19 @@ func NewHTTPServer(c *conf.Server, logger log.Logger, rideService *service.RideS
 
 	srv := http.NewServer(opts...)
 	v1.RegisterRideServiceHTTPServer(srv, rideService)
-	srv.Route("/").GET("/api/v1/orders/{order_id}/events", rideService.StreamOrderEventsHTTP)
+	srv.Route("/").GET("/api/v1/passenger/orders/{order_id}/events", rideService.StreamOrderEventsHTTP)
+
+	// 后台管理接口（GVA 后台调用），统一由 X-Internal-Token 保护。
+	internal := srv.Route("/api/v1/internal")
+	internal.GET("/orders", rideService.AdminListOrders)
+	internal.GET("/orders/{order_id}", rideService.AdminGetOrder)
+	internal.POST("/orders/{order_id}/dispatch", rideService.AdminDispatch)
+	internal.POST("/orders/{order_id}/commands", rideService.AdminCommand)
+	internal.GET("/passengers", rideService.AdminListPassengers)
+	internal.GET("/passengers/{passenger_id}", rideService.AdminGetPassenger)
+	internal.GET("/vehicles", rideService.AdminListVehicles)
+	internal.GET("/vehicles/{vehicle_id}", rideService.AdminGetVehicle)
+	internal.GET("/dispatch-records", rideService.AdminListDispatchRecords)
 
 	return srv
 }

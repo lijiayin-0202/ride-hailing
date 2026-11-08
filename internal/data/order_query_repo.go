@@ -71,7 +71,7 @@ func (r *rideRepo) CreatePayment(ctx context.Context, payment *biz.Payment) (*bi
 	result := r.data.db.WithContext(ctx).Table("payments").Create(map[string]any{
 		"payment_no": payment.PaymentNo, "order_id": payment.OrderID,
 		"passenger_id": payment.PassengerID, "payment_method": payment.Method,
-		"amount": cents(payment.Amount), "payment_status": 0,
+		"amount": cents(payment.Amount), "payment_status": biz.PaymentStatusPending,
 		"idempotency_key": payment.IdempotencyKey, "created_at": time.Now(), "updated_at": time.Now(),
 	})
 	if result.Error != nil {
@@ -95,9 +95,17 @@ func (r *rideRepo) CreateReview(ctx context.Context, review *biz.Review) (*biz.R
 	result := r.data.db.WithContext(ctx).Table("trip_reviews").Create(map[string]any{
 		"order_id": review.OrderID, "passenger_id": review.PassengerID,
 		"overall_score": review.Rating, "review_content": review.Comment,
+		"is_anonymous": review.Anonymous, "review_status": 1,
 		"tags": encodeTags(review.Tags), "created_at": review.CreatedAt, "updated_at": review.CreatedAt,
 	})
 	if result.Error != nil {
+		// trip_reviews.order_id 上有唯一约束时，并发重复评价按幂等冲突处理。
+		if errors.Is(result.Error, gorm.ErrDuplicatedKey) {
+			var duplicated reviewRow
+			if err := r.data.db.WithContext(ctx).Where("order_id = ?", review.OrderID).Take(&duplicated).Error; err == nil {
+				return reviewFromRow(duplicated), true, nil
+			}
+		}
 		return nil, false, result.Error
 	}
 	if err := r.data.db.WithContext(ctx).Table("trip_reviews").Where("order_id = ?", review.OrderID).Take(&row).Error; err != nil {
@@ -115,7 +123,7 @@ func (r *rideRepo) ListHistory(ctx context.Context, passengerID int64, cursor bi
 	case "COMPLETED":
 		query = query.Where("o.status = ?", int16(biz.OrderStatusCompleted))
 	case "CANCELLED":
-		query = query.Where("o.status IN (?, ?)", int16(biz.OrderStatusCancelled), int16(biz.OrderStatusClosed))
+		query = query.Where("o.status IN (?, ?)", int16(biz.OrderStatusCancelled), int16(biz.OrderStatusExceptionClosed))
 	}
 	var rows []orderDetailRow
 	if err := query.Order("o.created_at DESC, o.id DESC").Limit(pageSize + 1).Scan(&rows).Error; err != nil {

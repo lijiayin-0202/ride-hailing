@@ -26,7 +26,7 @@ func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger) (*
 	}
 	rideRepo := data.NewRideRepo(dataData)
 	rideUsecase := biz.NewRideUsecase(rideRepo, logger)
-	rideService := service.NewRideService(rideUsecase, logger)
+	rideService := service.NewRideService(rideUsecase, confData, logger)
 	httpServer := server.NewHTTPServer(confServer, logger, rideService)
 	grpcServer := server.NewGRPCServer(confServer, logger, rideService)
 	app := newApp(logger, httpServer, grpcServer)

@@ -202,19 +202,19 @@ type commandRow struct {
 func (commandRow) TableName() string { return "order_commands" }
 
 type paymentRow struct {
-	ID                int64 `gorm:"primaryKey"`
-	PaymentNo         string
-	OrderID           int64
-	PassengerID       int64
-	PaymentMethod     int16
-	Amount            cents
-	PaymentStatus     int16
-	IdempotencyKey    string
-	ThirdPartyTradeNo string
-	PaidAt            *time.Time
-	RefundedAt        *time.Time
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	ID              int64 `gorm:"primaryKey"`
+	PaymentNo       string
+	OrderID         int64
+	PassengerID     int64
+	PaymentMethod   int16
+	Amount          cents
+	PaymentStatus   int16
+	IdempotencyKey  string
+	ProviderTradeNo string `gorm:"column:provider_trade_no"`
+	RefundedAmount  cents
+	PaidAt          *time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 func (paymentRow) TableName() string { return "payments" }
@@ -228,6 +228,7 @@ type reviewRow struct {
 	ComfortScore *int32
 	Comment      string `gorm:"column:review_content"`
 	Tags         []byte `gorm:"type:jsonb"`
+	Anonymous    bool   `gorm:"column:is_anonymous"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
@@ -268,6 +269,15 @@ func newOrderNo(now time.Time) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("AG%s%06d", now.Format("20060102150405"), number.Int64()), nil
+}
+
+// newPublicID 生成对外可见的业务编号，包含时间戳与随机后缀避免碰撞。
+func newPublicID(prefix string, now time.Time) string {
+	number, err := rand.Int(rand.Reader, big.NewInt(1000000))
+	if err != nil {
+		return fmt.Sprintf("%s%d", prefix, now.UnixNano())
+	}
+	return fmt.Sprintf("%s%s%06d", prefix, now.Format("20060102150405"), number.Int64())
 }
 
 func newBoardingCode() (string, error) {

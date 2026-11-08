@@ -429,8 +429,10 @@ func (x *Data_Redis) GetWriteTimeout() *durationpb.Duration {
 type Data_Security struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	ContactPhoneKey string                 `protobuf:"bytes,1,opt,name=contact_phone_key,json=contactPhoneKey,proto3" json:"contact_phone_key,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// 内部服务令牌：调度/车端推进订单状态时通过 X-Internal-Token 传递。
+	InternalToken string `protobuf:"bytes,2,opt,name=internal_token,json=internalToken,proto3" json:"internal_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Data_Security) Reset() {
@@ -470,6 +472,13 @@ func (x *Data_Security) GetContactPhoneKey() string {
 	return ""
 }
 
+func (x *Data_Security) GetInternalToken() string {
+	if x != nil {
+		return x.InternalToken
+	}
+	return ""
+}
+
 var File_internal_conf_conf_proto protoreflect.FileDescriptor
 
 const file_internal_conf_conf_proto_rawDesc = "" +
@@ -488,7 +497,7 @@ const file_internal_conf_conf_proto_rawDesc = "" +
 	"\x04GRPC\x12\x18\n" +
 	"\anetwork\x18\x01 \x01(\tR\anetwork\x12\x12\n" +
 	"\x04addr\x18\x02 \x01(\tR\x04addr\x123\n" +
-	"\atimeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\atimeout\"\xde\x03\n" +
+	"\atimeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\atimeout\"\x85\x04\n" +
 	"\x04Data\x12;\n" +
 	"\bdatabase\x18\x01 \x01(\v2\x1f.ridehailing.conf.Data.DatabaseR\bdatabase\x122\n" +
 	"\x05redis\x18\x02 \x01(\v2\x1c.ridehailing.conf.Data.RedisR\x05redis\x12;\n" +
@@ -500,9 +509,10 @@ const file_internal_conf_conf_proto_rawDesc = "" +
 	"\anetwork\x18\x01 \x01(\tR\anetwork\x12\x12\n" +
 	"\x04addr\x18\x02 \x01(\tR\x04addr\x12<\n" +
 	"\fread_timeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\vreadTimeout\x12>\n" +
-	"\rwrite_timeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\fwriteTimeout\x1a6\n" +
+	"\rwrite_timeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\fwriteTimeout\x1a]\n" +
 	"\bSecurity\x12*\n" +
-	"\x11contact_phone_key\x18\x01 \x01(\tR\x0fcontactPhoneKeyB@Z>github.com/lijayin-0202/radish-ride-service/internal/conf;confb\x06proto3"
+	"\x11contact_phone_key\x18\x01 \x01(\tR\x0fcontactPhoneKey\x12%\n" +
+	"\x0einternal_token\x18\x02 \x01(\tR\rinternalTokenB@Z>github.com/lijayin-0202/radish-ride-service/internal/conf;confb\x06proto3"
 
 var (
 	file_internal_conf_conf_proto_rawDescOnce sync.Once

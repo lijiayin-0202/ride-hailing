@@ -91,6 +91,16 @@ func main() {
 		}
 		bc.Data.Security.ContactPhoneKey = key
 	}
+	// 内部令牌含下划线分段，env.NewSource 无法正确映射，这里显式覆盖。
+	if token := os.Getenv("RIDE_DATA_SECURITY_INTERNAL_TOKEN"); token != "" {
+		if bc.Data == nil {
+			bc.Data = &conf.Data{}
+		}
+		if bc.Data.Security == nil {
+			bc.Data.Security = &conf.Data_Security{}
+		}
+		bc.Data.Security.InternalToken = token
+	}
 
 	app, cleanup, err := wireApp(bc.Server, bc.Data, logger)
 	if err != nil {

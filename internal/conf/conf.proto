@@ -39,6 +39,8 @@ message Data {
   }
   message Security {
     string contact_phone_key = 1;
+    // 内部服务令牌：调度/车端推进订单状态时通过 X-Internal-Token 传递。
+    string internal_token = 2;
   }
   Database database = 1;
   Redis redis = 2;

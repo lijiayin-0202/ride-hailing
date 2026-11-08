@@ -19,14 +19,17 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	RideService_EstimateFare_FullMethodName        = "/ridehailing.v1.RideService/EstimateFare"
-	RideService_CreateOrder_FullMethodName         = "/ridehailing.v1.RideService/CreateOrder"
-	RideService_ListOrderHistory_FullMethodName    = "/ridehailing.v1.RideService/ListOrderHistory"
-	RideService_GetOrder_FullMethodName            = "/ridehailing.v1.RideService/GetOrder"
-	RideService_StreamOrderEvents_FullMethodName   = "/ridehailing.v1.RideService/StreamOrderEvents"
-	RideService_ExecuteOrderCommand_FullMethodName = "/ridehailing.v1.RideService/ExecuteOrderCommand"
-	RideService_CreatePayment_FullMethodName       = "/ridehailing.v1.RideService/CreatePayment"
-	RideService_SubmitReview_FullMethodName        = "/ridehailing.v1.RideService/SubmitReview"
+	RideService_EstimateFare_FullMethodName          = "/ridehailing.v1.RideService/EstimateFare"
+	RideService_CreateOrder_FullMethodName           = "/ridehailing.v1.RideService/CreateOrder"
+	RideService_ListOrderHistory_FullMethodName      = "/ridehailing.v1.RideService/ListOrderHistory"
+	RideService_GetOrderLiveView_FullMethodName      = "/ridehailing.v1.RideService/GetOrderLiveView"
+	RideService_GetOrderSettlement_FullMethodName    = "/ridehailing.v1.RideService/GetOrderSettlement"
+	RideService_CancelOrder_FullMethodName           = "/ridehailing.v1.RideService/CancelOrder"
+	RideService_StreamOrderEvents_FullMethodName     = "/ridehailing.v1.RideService/StreamOrderEvents"
+	RideService_ExecuteOrderCommand_FullMethodName   = "/ridehailing.v1.RideService/ExecuteOrderCommand"
+	RideService_CreatePayment_FullMethodName         = "/ridehailing.v1.RideService/CreatePayment"
+	RideService_SubmitReview_FullMethodName          = "/ridehailing.v1.RideService/SubmitReview"
+	RideService_HandlePaymentCallback_FullMethodName = "/ridehailing.v1.RideService/HandlePaymentCallback"
 )
 
 // RideServiceClient is the client API for RideService service.
@@ -36,11 +39,15 @@ type RideServiceClient interface {
 	EstimateFare(ctx context.Context, in *EstimateFareRequest, opts ...grpc.CallOption) (*EstimateFareReply, error)
 	CreateOrder(ctx context.Context, in *CreateOrderRequest, opts ...grpc.CallOption) (*CreateOrderReply, error)
 	ListOrderHistory(ctx context.Context, in *ListOrderHistoryRequest, opts ...grpc.CallOption) (*ListOrderHistoryReply, error)
-	GetOrder(ctx context.Context, in *GetOrderRequest, opts ...grpc.CallOption) (*OrderDetailReply, error)
+	GetOrderLiveView(ctx context.Context, in *GetOrderRequest, opts ...grpc.CallOption) (*OrderLiveViewReply, error)
+	GetOrderSettlement(ctx context.Context, in *GetOrderRequest, opts ...grpc.CallOption) (*SettlementReply, error)
+	CancelOrder(ctx context.Context, in *CancelOrderRequest, opts ...grpc.CallOption) (*CancelOrderReply, error)
 	StreamOrderEvents(ctx context.Context, in *StreamOrderEventsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[OrderEvent], error)
 	ExecuteOrderCommand(ctx context.Context, in *ExecuteOrderCommandRequest, opts ...grpc.CallOption) (*ExecuteOrderCommandReply, error)
 	CreatePayment(ctx context.Context, in *CreatePaymentRequest, opts ...grpc.CallOption) (*CreatePaymentReply, error)
 	SubmitReview(ctx context.Context, in *SubmitReviewRequest, opts ...grpc.CallOption) (*SubmitReviewReply, error)
+	// 支付渠道回调，非乘客端接口，由网关或渠道侧调用。
+	HandlePaymentCallback(ctx context.Context, in *PaymentCallbackRequest, opts ...grpc.CallOption) (*PaymentCallbackReply, error)
 }
 
 type rideServiceClient struct {
@@ -81,10 +88,30 @@ func (c *rideServiceClient) ListOrderHistory(ctx context.Context, in *ListOrderH
 	return out, nil
 }
 
-func (c *rideServiceClient) GetOrder(ctx context.Context, in *GetOrderRequest, opts ...grpc.CallOption) (*OrderDetailReply, error) {
+func (c *rideServiceClient) GetOrderLiveView(ctx context.Context, in *GetOrderRequest, opts ...grpc.CallOption) (*OrderLiveViewReply, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(OrderDetailReply)
-	err := c.cc.Invoke(ctx, RideService_GetOrder_FullMethodName, in, out, cOpts...)
+	out := new(OrderLiveViewReply)
+	err := c.cc.Invoke(ctx, RideService_GetOrderLiveView_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rideServiceClient) GetOrderSettlement(ctx context.Context, in *GetOrderRequest, opts ...grpc.CallOption) (*SettlementReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SettlementReply)
+	err := c.cc.Invoke(ctx, RideService_GetOrderSettlement_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rideServiceClient) CancelOrder(ctx context.Context, in *CancelOrderRequest, opts ...grpc.CallOption) (*CancelOrderReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CancelOrderReply)
+	err := c.cc.Invoke(ctx, RideService_CancelOrder_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -140,6 +167,16 @@ func (c *rideServiceClient) SubmitReview(ctx context.Context, in *SubmitReviewRe
 	return out, nil
 }
 
+func (c *rideServiceClient) HandlePaymentCallback(ctx context.Context, in *PaymentCallbackRequest, opts ...grpc.CallOption) (*PaymentCallbackReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PaymentCallbackReply)
+	err := c.cc.Invoke(ctx, RideService_HandlePaymentCallback_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RideServiceServer is the server API for RideService service.
 // All implementations must embed UnimplementedRideServiceServer
 // for forward compatibility.
@@ -147,11 +184,15 @@ type RideServiceServer interface {
 	EstimateFare(context.Context, *EstimateFareRequest) (*EstimateFareReply, error)
 	CreateOrder(context.Context, *CreateOrderRequest) (*CreateOrderReply, error)
 	ListOrderHistory(context.Context, *ListOrderHistoryRequest) (*ListOrderHistoryReply, error)
-	GetOrder(context.Context, *GetOrderRequest) (*OrderDetailReply, error)
+	GetOrderLiveView(context.Context, *GetOrderRequest) (*OrderLiveViewReply, error)
+	GetOrderSettlement(context.Context, *GetOrderRequest) (*SettlementReply, error)
+	CancelOrder(context.Context, *CancelOrderRequest) (*CancelOrderReply, error)
 	StreamOrderEvents(*StreamOrderEventsRequest, grpc.ServerStreamingServer[OrderEvent]) error
 	ExecuteOrderCommand(context.Context, *ExecuteOrderCommandRequest) (*ExecuteOrderCommandReply, error)
 	CreatePayment(context.Context, *CreatePaymentRequest) (*CreatePaymentReply, error)
 	SubmitReview(context.Context, *SubmitReviewRequest) (*SubmitReviewReply, error)
+	// 支付渠道回调，非乘客端接口，由网关或渠道侧调用。
+	HandlePaymentCallback(context.Context, *PaymentCallbackRequest) (*PaymentCallbackReply, error)
 	mustEmbedUnimplementedRideServiceServer()
 }
 
@@ -171,8 +212,14 @@ func (UnimplementedRideServiceServer) CreateOrder(context.Context, *CreateOrderR
 func (UnimplementedRideServiceServer) ListOrderHistory(context.Context, *ListOrderHistoryRequest) (*ListOrderHistoryReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListOrderHistory not implemented")
 }
-func (UnimplementedRideServiceServer) GetOrder(context.Context, *GetOrderRequest) (*OrderDetailReply, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetOrder not implemented")
+func (UnimplementedRideServiceServer) GetOrderLiveView(context.Context, *GetOrderRequest) (*OrderLiveViewReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetOrderLiveView not implemented")
+}
+func (UnimplementedRideServiceServer) GetOrderSettlement(context.Context, *GetOrderRequest) (*SettlementReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetOrderSettlement not implemented")
+}
+func (UnimplementedRideServiceServer) CancelOrder(context.Context, *CancelOrderRequest) (*CancelOrderReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method CancelOrder not implemented")
 }
 func (UnimplementedRideServiceServer) StreamOrderEvents(*StreamOrderEventsRequest, grpc.ServerStreamingServer[OrderEvent]) error {
 	return status.Error(codes.Unimplemented, "method StreamOrderEvents not implemented")
@@ -185,6 +232,9 @@ func (UnimplementedRideServiceServer) CreatePayment(context.Context, *CreatePaym
 }
 func (UnimplementedRideServiceServer) SubmitReview(context.Context, *SubmitReviewRequest) (*SubmitReviewReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method SubmitReview not implemented")
+}
+func (UnimplementedRideServiceServer) HandlePaymentCallback(context.Context, *PaymentCallbackRequest) (*PaymentCallbackReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method HandlePaymentCallback not implemented")
 }
 func (UnimplementedRideServiceServer) mustEmbedUnimplementedRideServiceServer() {}
 func (UnimplementedRideServiceServer) testEmbeddedByValue()                     {}
@@ -261,20 +311,56 @@ func _RideService_ListOrderHistory_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RideService_GetOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _RideService_GetOrderLiveView_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetOrderRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RideServiceServer).GetOrder(ctx, in)
+		return srv.(RideServiceServer).GetOrderLiveView(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: RideService_GetOrder_FullMethodName,
+		FullMethod: RideService_GetOrderLiveView_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RideServiceServer).GetOrder(ctx, req.(*GetOrderRequest))
+		return srv.(RideServiceServer).GetOrderLiveView(ctx, req.(*GetOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RideService_GetOrderSettlement_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RideServiceServer).GetOrderSettlement(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RideService_GetOrderSettlement_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RideServiceServer).GetOrderSettlement(ctx, req.(*GetOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RideService_CancelOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CancelOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RideServiceServer).CancelOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RideService_CancelOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RideServiceServer).CancelOrder(ctx, req.(*CancelOrderRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -344,6 +430,24 @@ func _RideService_SubmitReview_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RideService_HandlePaymentCallback_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PaymentCallbackRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RideServiceServer).HandlePaymentCallback(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RideService_HandlePaymentCallback_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RideServiceServer).HandlePaymentCallback(ctx, req.(*PaymentCallbackRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RideService_ServiceDesc is the grpc.ServiceDesc for RideService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -364,8 +468,16 @@ var RideService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _RideService_ListOrderHistory_Handler,
 		},
 		{
-			MethodName: "GetOrder",
-			Handler:    _RideService_GetOrder_Handler,
+			MethodName: "GetOrderLiveView",
+			Handler:    _RideService_GetOrderLiveView_Handler,
+		},
+		{
+			MethodName: "GetOrderSettlement",
+			Handler:    _RideService_GetOrderSettlement_Handler,
+		},
+		{
+			MethodName: "CancelOrder",
+			Handler:    _RideService_CancelOrder_Handler,
 		},
 		{
 			MethodName: "ExecuteOrderCommand",
@@ -378,6 +490,10 @@ var RideService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SubmitReview",
 			Handler:    _RideService_SubmitReview_Handler,
+		},
+		{
+			MethodName: "HandlePaymentCallback",
+			Handler:    _RideService_HandlePaymentCallback_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

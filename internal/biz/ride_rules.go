@@ -76,48 +76,6 @@ func calculateFare(rule PricingRule, distance int32, coupon *Coupon) Fare {
 	}
 }
 
-func commandTarget(current OrderStatus, commandType string) (OrderStatus, error) {
-	switch commandType {
-	case "DISPATCH":
-		if current != OrderStatusMatching {
-			return current, fmt.Errorf("%w: order is not matching", ErrConflict)
-		}
-		return OrderStatusPickingUp, nil
-	case "MARK_ARRIVED":
-		if current != OrderStatusPickingUp {
-			return current, fmt.Errorf("%w: vehicle is not picking up", ErrConflict)
-		}
-		return OrderStatusArrived, nil
-	case "START_TRIP":
-		if current != OrderStatusArrived {
-			return current, fmt.Errorf("%w: vehicle has not arrived", ErrConflict)
-		}
-		return OrderStatusInTrip, nil
-	case "COMPLETE_TRIP":
-		if current != OrderStatusInTrip {
-			return current, fmt.Errorf("%w: trip is not in progress", ErrConflict)
-		}
-		return OrderStatusCompleted, nil
-	case "CANCEL":
-		if current > OrderStatusArrived {
-			return current, fmt.Errorf("%w: order cannot be cancelled", ErrConflict)
-		}
-		return OrderStatusCancelled, nil
-	case "UNLOCK_AND_START":
-		if current != OrderStatusArrived {
-			return current, fmt.Errorf("%w: vehicle has not arrived", ErrConflict)
-		}
-		return OrderStatusInTrip, nil
-	case "REQUEST_PULL_OVER":
-		if current != OrderStatusInTrip {
-			return current, fmt.Errorf("%w: trip is not in progress", ErrConflict)
-		}
-		return current, nil
-	default:
-		return current, fmt.Errorf("%w: unsupported command", ErrInvalidArgument)
-	}
-}
-
 func findQuoteOption(options []QuoteOption, code string) (QuoteOption, bool) {
 	for _, option := range options {
 		if option.ServiceType.Code == code {
@@ -163,21 +121,74 @@ func DecodeHistoryCursor(value string) (HistoryCursor, error) {
 	return HistoryCursor{CreatedAt: createdAt, ID: id}, nil
 }
 
+// BuildFareItems 用已锁定金额重建费用明细：试算快照不持久化拆项，
+// 下单时按起步价 + 里程费 + 优惠券三段还原，总额以订单应付金额为准。
+func BuildFareItems(rule PricingRule, originalCents, discountCents int64) []FareItem {
+	base := rule.BaseFareCents
+	if base <= 0 || base > originalCents {
+		base = originalCents
+	}
+	items := []FareItem{{Type: "BASE_FARE", Name: "起步价", AmountCents: base}}
+	if distance := originalCents - base; distance > 0 {
+		items = append(items, FareItem{Type: "DISTANCE_FARE", Name: "里程费", AmountCents: distance})
+	}
+	if discountCents > 0 {
+		items = append(items, FareItem{Type: "COUPON", Name: "优惠券", AmountCents: -discountCents})
+	}
+	return items
+}
+
+// BuildTripProgress 依据最新位置重算行程进度；无位置时回退到订单上的实际里程。
+func BuildTripProgress(order *Order, location *LocationPoint) TripProgress {
+	progress := TripProgress{}
+	if order == nil {
+		return progress
+	}
+	if location != nil && location.Longitude != 0 && location.Latitude != 0 {
+		progress.SpeedKMH = location.SpeedKMH
+		// 车端上报轨迹已带剩余距离/进度时直接采用，避免二次估算误差。
+		if location.RemainingDistanceMeters > 0 || location.ProgressPercent > 0 {
+			progress.RemainingDistanceMeters = location.RemainingDistanceMeters
+			progress.RemainingDurationSeconds = location.RemainingDurationSeconds
+			progress.ProgressPercent = min(100, max(0, location.ProgressPercent))
+			return progress
+		}
+		remaining, duration := estimateRoute(
+			Place{Longitude: location.Longitude, Latitude: location.Latitude},
+			order.Destination,
+		)
+		progress.RemainingDistanceMeters = remaining
+		progress.RemainingDurationSeconds = duration
+		if order.DistanceMeters > 0 {
+			percent := int32(100 - int64(remaining)*100/int64(order.DistanceMeters))
+			progress.ProgressPercent = min(100, max(0, percent))
+		}
+		return progress
+	}
+	if order.Status == OrderStatusCompleted && order.ActualDistanceMeters > 0 {
+		progress.ProgressPercent = 100
+		return progress
+	}
+	return progress
+}
+
 func StatusPresentation(status OrderStatus) (string, string, int32, []string) {
 	switch status {
-	case OrderStatusMatching:
-		return "MATCHING", "正在匹配车辆", 1, []string{"CANCEL"}
+	case OrderStatusPendingDispatch:
+		return "PENDING_DISPATCH", "正在为你派车", 1, []string{"CANCEL"}
+	case OrderStatusDispatching:
+		return "DISPATCHING", "正在为你派车", 1, []string{"CANCEL"}
 	case OrderStatusPickingUp:
-		return "PICKING_UP", "车辆正在接驾", 1, []string{"CANCEL", "SHARE"}
-	case OrderStatusArrived:
-		return "VEHICLE_ARRIVED", "车辆已到达", 2, []string{"CANCEL", "UNLOCK_AND_START", "SHARE"}
+		return "PICKING_UP", "车辆正在接驾", 2, []string{"CANCEL", "SHARE"}
+	case OrderStatusWaitingBoarding:
+		return "WAITING_BOARDING", "车辆已到达，请上车", 3, []string{"CANCEL", "UNLOCK_AND_START", "SHARE"}
 	case OrderStatusInTrip:
-		return "IN_TRIP", "行程进行中", 3, []string{"REQUEST_PULL_OVER", "SHARE"}
+		return "IN_TRIP", "行程进行中", 4, []string{"REQUEST_PULL_OVER", "SHARE"}
 	case OrderStatusCompleted:
-		return "COMPLETED", "已完成", 4, []string{"PAY", "REVIEW"}
+		return "COMPLETED", "已完成", 5, []string{"PAY", "REVIEW"}
 	case OrderStatusCancelled:
-		return "CANCELLED", "已取消", 4, nil
+		return "CANCELLED", "已取消", 5, nil
 	default:
-		return "CLOSED", "已关闭", 4, nil
+		return "EXCEPTION_CLOSED", "订单异常关闭", 5, nil
 	}
 }

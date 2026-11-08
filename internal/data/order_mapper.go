@@ -182,14 +182,16 @@ func commandFromRow(row commandRow) *biz.OrderCommand {
 func paymentFromRow(row paymentRow) *biz.Payment {
 	return &biz.Payment{ID: row.ID, PaymentNo: row.PaymentNo, OrderID: row.OrderID,
 		PassengerID: row.PassengerID, IdempotencyKey: row.IdempotencyKey,
-		Method: row.PaymentMethod, Amount: int64(row.Amount), Status: row.PaymentStatus}
+		Method: row.PaymentMethod, Amount: int64(row.Amount), Status: row.PaymentStatus,
+		ChannelTradeNo: row.ProviderTradeNo, PaidAt: row.PaidAt}
 }
 
 func reviewFromRow(row reviewRow) *biz.Review {
 	var tags []string
 	_ = json.Unmarshal(row.Tags, &tags)
 	return &biz.Review{ID: row.ID, OrderID: row.OrderID, PassengerID: row.PassengerID,
-		Rating: row.OverallScore, Tags: tags, Comment: row.Comment, CreatedAt: row.CreatedAt}
+		Rating: row.OverallScore, Tags: tags, Comment: row.Comment,
+		Anonymous: row.Anonymous, CreatedAt: row.CreatedAt}
 }
 
 func paymentStatusText(status int16) string {

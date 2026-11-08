@@ -6,38 +6,6 @@ import (
 	"time"
 )
 
-func TestCommandTarget(t *testing.T) {
-	tests := []struct {
-		name        string
-		current     OrderStatus
-		commandType string
-		want        OrderStatus
-		wantErr     error
-	}{
-		{name: "cancel matching", current: OrderStatusMatching, commandType: "CANCEL", want: OrderStatusCancelled},
-		{name: "dispatch matching", current: OrderStatusMatching, commandType: "DISPATCH", want: OrderStatusPickingUp},
-		{name: "arrive picking up", current: OrderStatusPickingUp, commandType: "MARK_ARRIVED", want: OrderStatusArrived},
-		{name: "start trip", current: OrderStatusArrived, commandType: "START_TRIP", want: OrderStatusInTrip},
-		{name: "complete trip", current: OrderStatusInTrip, commandType: "COMPLETE_TRIP", want: OrderStatusCompleted},
-		{name: "reject early arrival", current: OrderStatusMatching, commandType: "MARK_ARRIVED", want: OrderStatusMatching, wantErr: ErrConflict},
-		{name: "start after arrival", current: OrderStatusArrived, commandType: "UNLOCK_AND_START", want: OrderStatusInTrip},
-		{name: "reject early start", current: OrderStatusPickingUp, commandType: "UNLOCK_AND_START", want: OrderStatusPickingUp, wantErr: ErrConflict},
-		{name: "pull over in trip", current: OrderStatusInTrip, commandType: "REQUEST_PULL_OVER", want: OrderStatusInTrip},
-		{name: "reject unknown", current: OrderStatusMatching, commandType: "UNKNOWN", want: OrderStatusMatching, wantErr: ErrInvalidArgument},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			actual, err := commandTarget(test.current, test.commandType)
-			if actual != test.want {
-				t.Fatalf("expected status %d, actual %d", test.want, actual)
-			}
-			if !errors.Is(err, test.wantErr) {
-				t.Fatalf("expected error %v, actual %v", test.wantErr, err)
-			}
-		})
-	}
-}
-
 func TestCalculateFareUsesIntegerCents(t *testing.T) {
 	rule := PricingRule{BaseFareCents: 1260, BaseDistanceMeters: 3000, DistanceUnitPriceCents: 160}
 	fare := calculateFare(rule, 42180, &Coupon{DiscountCents: 500})
@@ -105,5 +73,27 @@ func TestValidPhone(t *testing.T) {
 	}
 	if validPhone("1234") || validPhone("1381234abcd") {
 		t.Fatal("expected invalid phone to be rejected")
+	}
+}
+
+func TestBuildFareItemsMatchesTotals(t *testing.T) {
+	rule := PricingRule{BaseFareCents: 1000}
+	items := BuildFareItems(rule, 2000, 300)
+	total := int64(0)
+	for _, item := range items {
+		total += item.AmountCents
+	}
+	// 明细合计应等于应付金额（原始金额 - 优惠）。
+	if total != 1700 {
+		t.Fatalf("expected items to equal payable amount, actual %d", total)
+	}
+	if items[0].Type != "BASE_FARE" || items[1].Type != "DISTANCE_FARE" || items[2].AmountCents != -300 {
+		t.Fatalf("unexpected items: %+v", items)
+	}
+	if base := BuildFareItems(PricingRule{BaseFareCents: 5000}, 2000, 0); base[0].AmountCents != 2000 {
+		t.Fatalf("base fare must be capped by original amount, actual %d", base[0].AmountCents)
+	}
+	if noDiscount := BuildFareItems(rule, 1000, 0); len(noDiscount) != 1 {
+		t.Fatalf("expected single item without distance or discount, actual %+v", noDiscount)
 	}
 }

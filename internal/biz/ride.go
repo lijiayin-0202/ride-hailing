@@ -14,16 +14,30 @@ var (
 	ErrConflict        = errors.New("business conflict")
 )
 
+// OrderStatus 与《萝卜快跑开发任务》4.3 的订单状态机一致：
+// 0 待派车、1 派车中、2 接驾中、3 待上车、4 行程中、5 已完成、6 已取消、7 异常关闭。
 type OrderStatus int16
 
 const (
-	OrderStatusMatching OrderStatus = iota
-	OrderStatusPickingUp
-	OrderStatusArrived
-	OrderStatusInTrip
-	OrderStatusCompleted
-	OrderStatusCancelled
-	OrderStatusClosed
+	OrderStatusPendingDispatch OrderStatus = iota // 0 待派车
+	OrderStatusDispatching                        // 1 派车中
+	OrderStatusPickingUp                          // 2 接驾中
+	OrderStatusWaitingBoarding                    // 3 待上车
+	OrderStatusInTrip                             // 4 行程中
+	OrderStatusCompleted                          // 5 已完成
+	OrderStatusCancelled                          // 6 已取消
+	OrderStatusExceptionClosed                    // 7 异常关闭
+)
+
+// PaymentStatus 与 payments.payment_status 枚举一致。
+const (
+	PaymentStatusPending int16 = iota
+	PaymentStatusProcessing
+	PaymentStatusPaid
+	PaymentStatusFailed
+	PaymentStatusClosed
+	PaymentStatusPartiallyRefunded
+	PaymentStatusRefunded
 )
 
 type Place struct {
@@ -75,8 +89,9 @@ type ServiceType struct {
 }
 
 type QuoteOption struct {
-	ServiceType ServiceType
-	Fare        Fare
+	ServiceType       ServiceType
+	Fare              Fare
+	AvailableVehicles int32
 }
 
 type Quote struct {
@@ -160,6 +175,7 @@ type OrderCommand struct {
 	ReasonCode      string
 	ClientLongitude float64
 	ClientLatitude  float64
+	VehicleID       int64
 	Accepted        bool
 	ResultStatus    OrderStatus
 	CreatedAt       time.Time
@@ -175,6 +191,32 @@ type Payment struct {
 	Amount         int64
 	Status         int16
 	IdempotencyKey string
+	ChannelTradeNo string
+	PaidAt         *time.Time
+}
+
+type PaymentCallback struct {
+	PaymentNo      string
+	ChannelTradeNo string
+	Result         string
+	AmountCents    int64
+	OccurredAt     time.Time
+}
+
+type PaymentCallbackResult struct {
+	Payment    *Payment
+	OrderID    int64
+	Duplicated bool
+}
+
+type Refund struct {
+	RefundNo    string
+	PaymentID   int64
+	OrderID     int64
+	PassengerID int64
+	AmountCents int64
+	Reason      string
+	CreatedAt   time.Time
 }
 
 type Review struct {
@@ -184,7 +226,104 @@ type Review struct {
 	Rating      int32
 	Tags        []string
 	Comment     string
+	Anonymous   bool
 	CreatedAt   time.Time
+}
+
+type Cancellation struct {
+	OrderID     int64
+	PassengerID int64
+	ReasonCode  string
+	RuleCode    string
+	FeeCents    int64
+	RefundCents int64
+	PaidCents   int64
+	CancelledAt time.Time
+	Status      OrderStatus
+}
+
+type LocationPoint struct {
+	Longitude                float64
+	Latitude                 float64
+	SpeedKMH                 float64
+	ReportedAt               time.Time
+	ProgressPercent          int32
+	RemainingDistanceMeters  int32
+	RemainingDurationSeconds int32
+}
+
+type DispatchSummary struct {
+	Strategy             string
+	StrategyVersion      string
+	Status               string
+	VehicleResponse      string
+	AttemptCount         int32
+	PickupETASeconds     int32
+	PickupDistanceMeters float64
+	DispatchedAt         *time.Time
+}
+
+type BoardingVerification struct {
+	Method     string
+	Status     string
+	VerifiedAt *time.Time
+	Attempts   int32
+}
+
+type SafetyEvent struct {
+	ID          int64
+	Type        string
+	Level       string
+	Description string
+	Status      string
+	OccurredAt  time.Time
+}
+
+type TripProgress struct {
+	RemainingDistanceMeters  int32
+	RemainingDurationSeconds int32
+	SpeedKMH                 float64
+	ProgressPercent          int32
+}
+
+// OrderLiveView 是活动订单聚合详情，一次返回订单、车辆、位置、派单、核验和安全事件摘要。
+type OrderLiveView struct {
+	Order    *Order
+	Location *LocationPoint
+	Dispatch *DispatchSummary
+	Boarding *BoardingVerification
+	Safety   []SafetyEvent
+}
+
+type SettlementFeeItem struct {
+	Type        string
+	Name        string
+	AmountCents int64
+}
+
+type SettlementPayment struct {
+	PaymentID   int64
+	PaymentNo   string
+	Method      string
+	Status      string
+	AmountCents int64
+	PaidAt      *time.Time
+}
+
+type SettlementReview struct {
+	Submitted   bool
+	Rating      int32
+	Tags        []string
+	SubmittedAt *time.Time
+}
+
+type Settlement struct {
+	Order         *Order
+	FeeItems      []SettlementFeeItem
+	Payment       *SettlementPayment
+	PaidCents     int64
+	RefundedCents int64
+	Review        *SettlementReview
 }
 
 type HistoryCursor struct {
@@ -198,18 +337,141 @@ type HistoryPage struct {
 	HasMore bool
 }
 
+// AdminOrderFilter 后台订单列表筛选条件。
+type AdminOrderFilter struct {
+	Status   *int16
+	Keyword  string
+	Page     int
+	PageSize int
+}
+
+type AdminOrderPage struct {
+	Items []*Order
+	Total int64
+}
+
+// Passenger 后台视角的乘客档案。
+type Passenger struct {
+	ID               int64
+	PassengerNo      string
+	Mobile           string
+	Nickname         string
+	AvatarURL        string
+	ExternalProvider string
+	RealNameStatus   int16
+	AccountStatus    int16
+	PointBalance     int32
+	LastLoginAt      *time.Time
+	CreatedAt        time.Time
+}
+
+// AdminPassengerFilter 后台乘客列表筛选条件。
+type AdminPassengerFilter struct {
+	Keyword        string
+	RealNameStatus *int16
+	AccountStatus  *int16
+	Page           int
+	PageSize       int
+}
+
+type AdminPassengerPage struct {
+	Items []*Passenger
+	Total int64
+}
+
+// AdminVehicle 后台视角的车辆档案。
+type AdminVehicle struct {
+	ID              int64
+	VehicleNo       string
+	VIN             string
+	PlateNo         string
+	Model           string
+	SeatCount       int16
+	ServiceAreaID   *int64
+	ServiceAreaName string
+	OperationStatus int16
+	OnlineStatus    int16
+	BatteryPercent  *float64
+	SoftwareVersion string
+	LastReportedAt  *time.Time
+	CreatedAt       time.Time
+}
+
+// AdminVehicleFilter 后台车辆列表筛选条件。
+type AdminVehicleFilter struct {
+	Keyword         string
+	OperationStatus *int16
+	OnlineStatus    *int16
+	Page            int
+	PageSize        int
+}
+
+type AdminVehiclePage struct {
+	Items []*AdminVehicle
+	Total int64
+}
+
+// AdminDispatchRecord 后台视角的派单记录。
+type AdminDispatchRecord struct {
+	ID                        int64
+	DispatchNo                string
+	OrderID                   int64
+	OrderNo                   string
+	VehicleID                 *int64
+	PlateNo                   string
+	DispatchStrategy          string
+	CandidateScore            *float64
+	EstimatedPickupDistanceKM *float64
+	EstimatedArrivalMin       *int32
+	Status                    int16
+	FailureReason             string
+	DispatchedAt              *time.Time
+	RespondedAt               *time.Time
+	CreatedAt                 time.Time
+}
+
+// AdminDispatchRecordFilter 后台派单记录筛选条件。
+type AdminDispatchRecordFilter struct {
+	Keyword  string
+	Status   *int16
+	Page     int
+	PageSize int
+}
+
+type AdminDispatchRecordPage struct {
+	Items []*AdminDispatchRecord
+	Total int64
+}
+
 type RideRepo interface {
-	ListServiceTypes(context.Context, string, time.Time) ([]ServiceType, error)
-	FindCoupon(context.Context, int64, string, int64) (*Coupon, error)
-	CreateQuote(context.Context, *Quote) error
-	GetQuote(context.Context, string) (*Quote, error)
-	CreateOrder(context.Context, *Order) (*Order, bool, error)
-	GetOrder(context.Context, int64, int64) (*Order, error)
-	ExecuteCommand(context.Context, *OrderCommand) (*OrderCommand, error)
-	ListEvents(context.Context, int64, int64, int64) ([]OrderEvent, error)
-	CreatePayment(context.Context, *Payment) (*Payment, bool, error)
-	CreateReview(context.Context, *Review) (*Review, bool, error)
-	ListHistory(context.Context, int64, HistoryCursor, int, string) (*HistoryPage, error)
+	ResolveServiceArea(ctx context.Context, cityCode string, origin, destination Place) (int64, error)
+	ListServiceTypes(ctx context.Context, cityCode string, now time.Time) ([]ServiceType, error)
+	CountAvailableVehicles(ctx context.Context, serviceAreaID, serviceTypeID int64) (int32, error)
+	FindCoupon(ctx context.Context, passengerID int64, couponID string, originalCents int64) (*Coupon, error)
+	CreateQuote(ctx context.Context, quote *Quote) error
+	GetQuote(ctx context.Context, token string) (*Quote, error)
+	CreateOrder(ctx context.Context, order *Order) (*Order, bool, error)
+	FindOrderByIdempotency(ctx context.Context, passengerID int64, idempotencyKey string) (*Order, error)
+	GetOrder(ctx context.Context, passengerID, orderID int64) (*Order, error)
+	GetOrderAny(ctx context.Context, orderID int64) (*Order, error)
+	ListOrdersForAdmin(ctx context.Context, filter AdminOrderFilter) (*AdminOrderPage, error)
+	ListPassengersForAdmin(ctx context.Context, filter AdminPassengerFilter) (*AdminPassengerPage, error)
+	GetPassengerAny(ctx context.Context, passengerID int64) (*Passenger, error)
+	ListVehiclesForAdmin(ctx context.Context, filter AdminVehicleFilter) (*AdminVehiclePage, error)
+	GetVehicleAny(ctx context.Context, vehicleID int64) (*AdminVehicle, error)
+	ListDispatchRecordsForAdmin(ctx context.Context, filter AdminDispatchRecordFilter) (*AdminDispatchRecordPage, error)
+	GetVehicle(ctx context.Context, vehicleID int64) (*Vehicle, error)
+	PickAvailableVehicle(ctx context.Context, serviceAreaID int64) (*Vehicle, error)
+	GetLiveView(ctx context.Context, passengerID, orderID int64) (*OrderLiveView, error)
+	GetSettlement(ctx context.Context, passengerID, orderID int64) (*Settlement, error)
+	ExecuteCommand(ctx context.Context, command *OrderCommand) (*OrderCommand, error)
+	CancelOrder(ctx context.Context, cancellation *Cancellation) (*Cancellation, error)
+	PaidAmount(ctx context.Context, orderID int64) (int64, error)
+	ListEvents(ctx context.Context, passengerID, orderID, afterID int64) ([]OrderEvent, error)
+	CreatePayment(ctx context.Context, payment *Payment) (*Payment, bool, error)
+	HandlePaymentCallback(ctx context.Context, callback *PaymentCallback) (*PaymentCallbackResult, error)
+	CreateReview(ctx context.Context, review *Review) (*Review, bool, error)
+	ListHistory(ctx context.Context, passengerID int64, cursor HistoryCursor, pageSize int, statusGroup string) (*HistoryPage, error)
 }
 
 type RideUsecase struct {

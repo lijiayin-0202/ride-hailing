@@ -19,33 +19,43 @@ var _ = binding.EncodeURL
 
 const _ = http.SupportPackageIsVersion1
 
+const OperationRideServiceCancelOrder = "/ridehailing.v1.RideService/CancelOrder"
 const OperationRideServiceCreateOrder = "/ridehailing.v1.RideService/CreateOrder"
 const OperationRideServiceCreatePayment = "/ridehailing.v1.RideService/CreatePayment"
 const OperationRideServiceEstimateFare = "/ridehailing.v1.RideService/EstimateFare"
 const OperationRideServiceExecuteOrderCommand = "/ridehailing.v1.RideService/ExecuteOrderCommand"
-const OperationRideServiceGetOrder = "/ridehailing.v1.RideService/GetOrder"
+const OperationRideServiceGetOrderLiveView = "/ridehailing.v1.RideService/GetOrderLiveView"
+const OperationRideServiceGetOrderSettlement = "/ridehailing.v1.RideService/GetOrderSettlement"
+const OperationRideServiceHandlePaymentCallback = "/ridehailing.v1.RideService/HandlePaymentCallback"
 const OperationRideServiceListOrderHistory = "/ridehailing.v1.RideService/ListOrderHistory"
 const OperationRideServiceSubmitReview = "/ridehailing.v1.RideService/SubmitReview"
 
 type RideServiceHTTPServer interface {
+	CancelOrder(context.Context, *CancelOrderRequest) (*CancelOrderReply, error)
 	CreateOrder(context.Context, *CreateOrderRequest) (*CreateOrderReply, error)
 	CreatePayment(context.Context, *CreatePaymentRequest) (*CreatePaymentReply, error)
 	EstimateFare(context.Context, *EstimateFareRequest) (*EstimateFareReply, error)
 	ExecuteOrderCommand(context.Context, *ExecuteOrderCommandRequest) (*ExecuteOrderCommandReply, error)
-	GetOrder(context.Context, *GetOrderRequest) (*OrderDetailReply, error)
+	GetOrderLiveView(context.Context, *GetOrderRequest) (*OrderLiveViewReply, error)
+	GetOrderSettlement(context.Context, *GetOrderRequest) (*SettlementReply, error)
+	// HandlePaymentCallback 支付渠道回调，非乘客端接口，由网关或渠道侧调用。
+	HandlePaymentCallback(context.Context, *PaymentCallbackRequest) (*PaymentCallbackReply, error)
 	ListOrderHistory(context.Context, *ListOrderHistoryRequest) (*ListOrderHistoryReply, error)
 	SubmitReview(context.Context, *SubmitReviewRequest) (*SubmitReviewReply, error)
 }
 
 func RegisterRideServiceHTTPServer(s *http.Server, srv RideServiceHTTPServer) {
 	r := s.Route("/")
-	r.POST("/api/v1/ride/quotes", _RideService_EstimateFare0_HTTP_Handler(srv))
-	r.POST("/api/v1/orders", _RideService_CreateOrder0_HTTP_Handler(srv))
-	r.GET("/api/v1/orders/history", _RideService_ListOrderHistory0_HTTP_Handler(srv))
-	r.GET("/api/v1/orders/{order_id}", _RideService_GetOrder0_HTTP_Handler(srv))
-	r.POST("/api/v1/orders/{order_id}/commands", _RideService_ExecuteOrderCommand0_HTTP_Handler(srv))
-	r.POST("/api/v1/orders/{order_id}/payments", _RideService_CreatePayment0_HTTP_Handler(srv))
-	r.POST("/api/v1/orders/{order_id}/review", _RideService_SubmitReview0_HTTP_Handler(srv))
+	r.POST("/api/v1/passenger/fare-options/estimate", _RideService_EstimateFare0_HTTP_Handler(srv))
+	r.POST("/api/v1/passenger/orders", _RideService_CreateOrder0_HTTP_Handler(srv))
+	r.GET("/api/v1/passenger/orders", _RideService_ListOrderHistory0_HTTP_Handler(srv))
+	r.GET("/api/v1/passenger/orders/{order_id}/live-view", _RideService_GetOrderLiveView0_HTTP_Handler(srv))
+	r.GET("/api/v1/passenger/orders/{order_id}/settlement-view", _RideService_GetOrderSettlement0_HTTP_Handler(srv))
+	r.POST("/api/v1/passenger/orders/{order_id}/cancel", _RideService_CancelOrder0_HTTP_Handler(srv))
+	r.POST("/api/v1/passenger/orders/{order_id}/commands", _RideService_ExecuteOrderCommand0_HTTP_Handler(srv))
+	r.POST("/api/v1/passenger/orders/{order_id}/payments", _RideService_CreatePayment0_HTTP_Handler(srv))
+	r.POST("/api/v1/passenger/orders/{order_id}/reviews", _RideService_SubmitReview0_HTTP_Handler(srv))
+	r.POST("/api/v1/payments/callback", _RideService_HandlePaymentCallback0_HTTP_Handler(srv))
 }
 
 func _RideService_EstimateFare0_HTTP_Handler(srv RideServiceHTTPServer) func(ctx http.Context) error {
@@ -111,7 +121,7 @@ func _RideService_ListOrderHistory0_HTTP_Handler(srv RideServiceHTTPServer) func
 	}
 }
 
-func _RideService_GetOrder0_HTTP_Handler(srv RideServiceHTTPServer) func(ctx http.Context) error {
+func _RideService_GetOrderLiveView0_HTTP_Handler(srv RideServiceHTTPServer) func(ctx http.Context) error {
 	return func(ctx http.Context) error {
 		var in GetOrderRequest
 		if err := ctx.BindQuery(&in); err != nil {
@@ -120,15 +130,62 @@ func _RideService_GetOrder0_HTTP_Handler(srv RideServiceHTTPServer) func(ctx htt
 		if err := ctx.BindVars(&in); err != nil {
 			return err
 		}
-		http.SetOperation(ctx, OperationRideServiceGetOrder)
+		http.SetOperation(ctx, OperationRideServiceGetOrderLiveView)
 		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
-			return srv.GetOrder(ctx, req.(*GetOrderRequest))
+			return srv.GetOrderLiveView(ctx, req.(*GetOrderRequest))
 		})
 		out, err := h(ctx, &in)
 		if err != nil {
 			return err
 		}
-		reply := out.(*OrderDetailReply)
+		reply := out.(*OrderLiveViewReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _RideService_GetOrderSettlement0_HTTP_Handler(srv RideServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in GetOrderRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationRideServiceGetOrderSettlement)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.GetOrderSettlement(ctx, req.(*GetOrderRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*SettlementReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _RideService_CancelOrder0_HTTP_Handler(srv RideServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in CancelOrderRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationRideServiceCancelOrder)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.CancelOrder(ctx, req.(*CancelOrderRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*CancelOrderReply)
 		return ctx.Result(200, reply)
 	}
 }
@@ -208,12 +265,38 @@ func _RideService_SubmitReview0_HTTP_Handler(srv RideServiceHTTPServer) func(ctx
 	}
 }
 
+func _RideService_HandlePaymentCallback0_HTTP_Handler(srv RideServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in PaymentCallbackRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationRideServiceHandlePaymentCallback)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.HandlePaymentCallback(ctx, req.(*PaymentCallbackRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*PaymentCallbackReply)
+		return ctx.Result(200, reply)
+	}
+}
+
 type RideServiceHTTPClient interface {
+	CancelOrder(ctx context.Context, req *CancelOrderRequest, opts ...http.CallOption) (rsp *CancelOrderReply, err error)
 	CreateOrder(ctx context.Context, req *CreateOrderRequest, opts ...http.CallOption) (rsp *CreateOrderReply, err error)
 	CreatePayment(ctx context.Context, req *CreatePaymentRequest, opts ...http.CallOption) (rsp *CreatePaymentReply, err error)
 	EstimateFare(ctx context.Context, req *EstimateFareRequest, opts ...http.CallOption) (rsp *EstimateFareReply, err error)
 	ExecuteOrderCommand(ctx context.Context, req *ExecuteOrderCommandRequest, opts ...http.CallOption) (rsp *ExecuteOrderCommandReply, err error)
-	GetOrder(ctx context.Context, req *GetOrderRequest, opts ...http.CallOption) (rsp *OrderDetailReply, err error)
+	GetOrderLiveView(ctx context.Context, req *GetOrderRequest, opts ...http.CallOption) (rsp *OrderLiveViewReply, err error)
+	GetOrderSettlement(ctx context.Context, req *GetOrderRequest, opts ...http.CallOption) (rsp *SettlementReply, err error)
+	// HandlePaymentCallback 支付渠道回调，非乘客端接口，由网关或渠道侧调用。
+	HandlePaymentCallback(ctx context.Context, req *PaymentCallbackRequest, opts ...http.CallOption) (rsp *PaymentCallbackReply, err error)
 	ListOrderHistory(ctx context.Context, req *ListOrderHistoryRequest, opts ...http.CallOption) (rsp *ListOrderHistoryReply, err error)
 	SubmitReview(ctx context.Context, req *SubmitReviewRequest, opts ...http.CallOption) (rsp *SubmitReviewReply, err error)
 }
@@ -226,9 +309,22 @@ func NewRideServiceHTTPClient(client *http.Client) RideServiceHTTPClient {
 	return &RideServiceHTTPClientImpl{client}
 }
 
+func (c *RideServiceHTTPClientImpl) CancelOrder(ctx context.Context, in *CancelOrderRequest, opts ...http.CallOption) (*CancelOrderReply, error) {
+	var out CancelOrderReply
+	pattern := "/api/v1/passenger/orders/{order_id}/cancel"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationRideServiceCancelOrder))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 func (c *RideServiceHTTPClientImpl) CreateOrder(ctx context.Context, in *CreateOrderRequest, opts ...http.CallOption) (*CreateOrderReply, error) {
 	var out CreateOrderReply
-	pattern := "/api/v1/orders"
+	pattern := "/api/v1/passenger/orders"
 	path := binding.EncodeURL(pattern, in, false)
 	opts = append(opts, http.Operation(OperationRideServiceCreateOrder))
 	opts = append(opts, http.PathTemplate(pattern))
@@ -241,7 +337,7 @@ func (c *RideServiceHTTPClientImpl) CreateOrder(ctx context.Context, in *CreateO
 
 func (c *RideServiceHTTPClientImpl) CreatePayment(ctx context.Context, in *CreatePaymentRequest, opts ...http.CallOption) (*CreatePaymentReply, error) {
 	var out CreatePaymentReply
-	pattern := "/api/v1/orders/{order_id}/payments"
+	pattern := "/api/v1/passenger/orders/{order_id}/payments"
 	path := binding.EncodeURL(pattern, in, false)
 	opts = append(opts, http.Operation(OperationRideServiceCreatePayment))
 	opts = append(opts, http.PathTemplate(pattern))
@@ -254,7 +350,7 @@ func (c *RideServiceHTTPClientImpl) CreatePayment(ctx context.Context, in *Creat
 
 func (c *RideServiceHTTPClientImpl) EstimateFare(ctx context.Context, in *EstimateFareRequest, opts ...http.CallOption) (*EstimateFareReply, error) {
 	var out EstimateFareReply
-	pattern := "/api/v1/ride/quotes"
+	pattern := "/api/v1/passenger/fare-options/estimate"
 	path := binding.EncodeURL(pattern, in, false)
 	opts = append(opts, http.Operation(OperationRideServiceEstimateFare))
 	opts = append(opts, http.PathTemplate(pattern))
@@ -267,7 +363,7 @@ func (c *RideServiceHTTPClientImpl) EstimateFare(ctx context.Context, in *Estima
 
 func (c *RideServiceHTTPClientImpl) ExecuteOrderCommand(ctx context.Context, in *ExecuteOrderCommandRequest, opts ...http.CallOption) (*ExecuteOrderCommandReply, error) {
 	var out ExecuteOrderCommandReply
-	pattern := "/api/v1/orders/{order_id}/commands"
+	pattern := "/api/v1/passenger/orders/{order_id}/commands"
 	path := binding.EncodeURL(pattern, in, false)
 	opts = append(opts, http.Operation(OperationRideServiceExecuteOrderCommand))
 	opts = append(opts, http.PathTemplate(pattern))
@@ -278,11 +374,11 @@ func (c *RideServiceHTTPClientImpl) ExecuteOrderCommand(ctx context.Context, in 
 	return &out, nil
 }
 
-func (c *RideServiceHTTPClientImpl) GetOrder(ctx context.Context, in *GetOrderRequest, opts ...http.CallOption) (*OrderDetailReply, error) {
-	var out OrderDetailReply
-	pattern := "/api/v1/orders/{order_id}"
+func (c *RideServiceHTTPClientImpl) GetOrderLiveView(ctx context.Context, in *GetOrderRequest, opts ...http.CallOption) (*OrderLiveViewReply, error) {
+	var out OrderLiveViewReply
+	pattern := "/api/v1/passenger/orders/{order_id}/live-view"
 	path := binding.EncodeURL(pattern, in, true)
-	opts = append(opts, http.Operation(OperationRideServiceGetOrder))
+	opts = append(opts, http.Operation(OperationRideServiceGetOrderLiveView))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
 	if err != nil {
@@ -291,9 +387,36 @@ func (c *RideServiceHTTPClientImpl) GetOrder(ctx context.Context, in *GetOrderRe
 	return &out, nil
 }
 
+func (c *RideServiceHTTPClientImpl) GetOrderSettlement(ctx context.Context, in *GetOrderRequest, opts ...http.CallOption) (*SettlementReply, error) {
+	var out SettlementReply
+	pattern := "/api/v1/passenger/orders/{order_id}/settlement-view"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationRideServiceGetOrderSettlement))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// HandlePaymentCallback 支付渠道回调，非乘客端接口，由网关或渠道侧调用。
+func (c *RideServiceHTTPClientImpl) HandlePaymentCallback(ctx context.Context, in *PaymentCallbackRequest, opts ...http.CallOption) (*PaymentCallbackReply, error) {
+	var out PaymentCallbackReply
+	pattern := "/api/v1/payments/callback"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationRideServiceHandlePaymentCallback))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 func (c *RideServiceHTTPClientImpl) ListOrderHistory(ctx context.Context, in *ListOrderHistoryRequest, opts ...http.CallOption) (*ListOrderHistoryReply, error) {
 	var out ListOrderHistoryReply
-	pattern := "/api/v1/orders/history"
+	pattern := "/api/v1/passenger/orders"
 	path := binding.EncodeURL(pattern, in, true)
 	opts = append(opts, http.Operation(OperationRideServiceListOrderHistory))
 	opts = append(opts, http.PathTemplate(pattern))
@@ -306,7 +429,7 @@ func (c *RideServiceHTTPClientImpl) ListOrderHistory(ctx context.Context, in *Li
 
 func (c *RideServiceHTTPClientImpl) SubmitReview(ctx context.Context, in *SubmitReviewRequest, opts ...http.CallOption) (*SubmitReviewReply, error) {
 	var out SubmitReviewReply
-	pattern := "/api/v1/orders/{order_id}/review"
+	pattern := "/api/v1/passenger/orders/{order_id}/reviews"
 	path := binding.EncodeURL(pattern, in, false)
 	opts = append(opts, http.Operation(OperationRideServiceSubmitReview))
 	opts = append(opts, http.PathTemplate(pattern))
