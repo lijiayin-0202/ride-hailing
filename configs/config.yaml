@@ -1,14 +1,11 @@
 server:
   http:
-    network: tcp
     addr: 0.0.0.0:8000
-    timeout: 5s
+    timeout: 60s
   grpc:
-    network: tcp
     addr: 0.0.0.0:9000
-    timeout: 5s
+    timeout: 60s
 data:
-  # 派单雪花 ID 节点由环境变量 DISPATCH_SNOWFLAKE_NODE_ID 注入，不能提供默认值。
   database:
     # 主库固定 PostgreSQL；敏感项只允许通过环境变量注入。
     driver: postgres
@@ -33,3 +30,9 @@ data:
     lease_duration: 10s
     reassignment_poll_interval: 1s
     order_sync_poll_interval: 1s
+  security:
+    # 运行时由 RIDE_DATA_SECURITY_CONTACT_PHONE_KEY 注入。
+    contact_phone_key: ""
+    # 内部服务令牌：调度/车端推进订单状态、支付回调需要携带 X-Internal-Token。
+    # 运行时由 RIDE_DATA_SECURITY_INTERNAL_TOKEN 注入；留空时仅用于本地开发放行。
+    internal_token: ""

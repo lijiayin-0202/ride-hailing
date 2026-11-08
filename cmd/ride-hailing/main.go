@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
+	"github.com/go-kratos/kratos/v2/config/env"
 	"github.com/go-kratos/kratos/v2/config/file"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/tracing"
@@ -92,7 +93,7 @@ func main() {
 
 	// ③ 加载配置文件（仅 yaml；敏感项由 internal/conf 从环境变量补齐）
 	c := config.New(
-		config.WithSource(file.NewSource(flagconf)),
+		config.WithSource(file.NewSource(flagconf), env.NewSource("RIDE")),
 	)
 	defer c.Close()
 
@@ -105,6 +106,34 @@ func main() {
 	var bc conf.Bootstrap
 	if err := c.Scan(&bc); err != nil {
 		panic(err)
+	}
+	if source := os.Getenv("RIDE_DATA_DATABASE_SOURCE"); source != "" {
+		if bc.Data == nil {
+			bc.Data = &conf.Data{}
+		}
+		if bc.Data.Database == nil {
+			bc.Data.Database = &conf.Data_Database{Driver: "postgres"}
+		}
+		bc.Data.Database.Source = source
+	}
+	if key := os.Getenv("RIDE_DATA_SECURITY_CONTACT_PHONE_KEY"); key != "" {
+		if bc.Data == nil {
+			bc.Data = &conf.Data{}
+		}
+		if bc.Data.Security == nil {
+			bc.Data.Security = &conf.Data_Security{}
+		}
+		bc.Data.Security.ContactPhoneKey = key
+	}
+	// 内部令牌含下划线分段，env.NewSource 无法正确映射，这里显式覆盖。
+	if token := os.Getenv("RIDE_DATA_SECURITY_INTERNAL_TOKEN"); token != "" {
+		if bc.Data == nil {
+			bc.Data = &conf.Data{}
+		}
+		if bc.Data.Security == nil {
+			bc.Data.Security = &conf.Data_Security{}
+		}
+		bc.Data.Security.InternalToken = token
 	}
 
 	// ⑤ wire 组装依赖（repo → usecase → service → server）

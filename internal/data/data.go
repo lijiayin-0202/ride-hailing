@@ -5,21 +5,26 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/wire"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
 	"github.com/lijayin-0202/radish-ride-service/internal/biz"
 	"github.com/lijayin-0202/radish-ride-service/internal/conf"
 	"github.com/lijayin-0202/radish-ride-service/pkg/cache"
 )
 
-// ProviderSet 集中管理模块1与模块3的数据层实现。
+// ProviderSet 集中管理模块1、模块3 与订单模块的数据层实现。
 var ProviderSet = wire.NewSet(
 	NewData,
+	// 订单、报价、支付与派车记录（GORM 实现）。
+	NewRideRepo,
 	// 模块1 用户账号与个人中心。
 	NewPassengerRepo,
 	NewPassengerAuthRecordRepo,
@@ -62,6 +67,13 @@ type Data struct {
 	dispatchIDGenerator biz.DispatchIDGenerator
 	rdb                 redis.UniversalClient
 	log                 *log.Helper
+
+	// gormDB 供订单/报价/支付等 GORM 仓储使用，与 pool 指向同一个数据库。
+	gormDB   *gorm.DB
+	phoneKey string
+
+	columnMu    sync.RWMutex
+	columnCache map[string]bool
 }
 
 // NewData 初始化数据层连接，返回清理函数用于优雅退出。
@@ -80,6 +92,11 @@ func NewData(c *conf.Data, logger log.Logger) (*Data, func(), error) {
 	if dsn == "" {
 		return nil, nil, fmt.Errorf("数据库连接串为空：请注入环境变量 %s（configs/config.yaml 仅保留 ${%s} 占位）",
 			conf.EnvDatabaseSource, conf.EnvDatabaseSource)
+	}
+
+	phoneKey := c.GetSecurity().GetContactPhoneKey()
+	if len(phoneKey) < 32 {
+		return nil, nil, fmt.Errorf("联系人手机号加密密钥至少需要 32 字节：请注入环境变量 RIDE_DATA_SECURITY_CONTACT_PHONE_KEY")
 	}
 
 	poolCfg, err := pgxpool.ParseConfig(dsn)
@@ -103,16 +120,36 @@ func NewData(c *conf.Data, logger log.Logger) (*Data, func(), error) {
 		return nil, nil, fmt.Errorf("数据库连接不可用: %w", err)
 	}
 
+	// 订单模块的仓储基于 GORM，复用同一个 DSN 建立独立连接池。
+	gormDB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{TranslateError: true})
+	if err != nil {
+		pool.Close()
+		return nil, nil, fmt.Errorf("初始化 GORM 连接失败: %w", err)
+	}
+	sqlDB, err := gormDB.DB()
+	if err != nil {
+		pool.Close()
+		return nil, nil, fmt.Errorf("获取 GORM 底层连接失败: %w", err)
+	}
+	sqlDB.SetMaxIdleConns(4)
+	sqlDB.SetMaxOpenConns(16)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+
 	dispatchIDGenerator, err := NewDispatchIDGenerator()
 	if err != nil {
+		_ = sqlDB.Close()
 		pool.Close()
 		return nil, nil, fmt.Errorf("配置派单 ID 生成器失败: %w", err)
 	}
+
 	d := &Data{
 		db:                  pool,
 		pool:                pool,
 		dispatchIDGenerator: dispatchIDGenerator,
 		log:                 helper,
+		gormDB:              gormDB,
+		phoneKey:            phoneKey,
+		columnCache:         map[string]bool{},
 	}
 
 	redisAddr := strings.TrimSpace(c.GetRedis().GetAddr())
@@ -142,10 +179,39 @@ func NewData(c *conf.Data, logger log.Logger) (*Data, func(), error) {
 		if d.rdb != nil {
 			_ = d.rdb.Close()
 		}
+		if err := sqlDB.Close(); err != nil {
+			helper.Errorf("关闭 GORM 连接失败: %v", err)
+		}
 		pool.Close()
 		helper.Info("closing the data resources")
 	}
 	return d, cleanup, nil
+}
+
+// hasColumn 探测表字段是否存在。跨模块表（vehicles / dispatch_records 等）的字段名
+// 尚未由对应模块冻结，探测后再拼查询可以避免试算整体失败。
+func (d *Data) hasColumn(table, column string) bool {
+	key := table + "." + column
+	d.columnMu.RLock()
+	value, ok := d.columnCache[key]
+	d.columnMu.RUnlock()
+	if ok {
+		return value
+	}
+	var count int64
+	err := d.gormDB.Table("information_schema.columns").
+		Where("table_name = ? AND column_name = ?", table, column).
+		Count(&count).Error
+	exists := err == nil && count > 0
+	d.columnMu.Lock()
+	d.columnCache[key] = exists
+	d.columnMu.Unlock()
+	return exists
+}
+
+// hasTable 探测表是否存在，用于跨模块只读聚合的降级处理。
+func (d *Data) hasTable(table string) bool {
+	return d.hasColumn(table, "id")
 }
 
 // 编译期断言：确保模块1 data 层实现 biz 定义的仓库接口。

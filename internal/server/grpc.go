@@ -21,6 +21,7 @@ func NewGRPCServer(
 	stationService *service.StationService,
 	serviceAreaAdminService *service.ServiceAreaAdminService,
 	callbackService *service.DispatchCallbackService,
+	rideService *service.RideService,
 ) *grpc.Server {
 	// 中间件顺序：panic 兜底 → 链路追踪 → 请求日志（不打印参数）。
 	opts := []grpc.ServerOption{
@@ -52,6 +53,8 @@ func NewGRPCServer(
 	v1.RegisterStationServiceServer(srv, stationService)
 	v1.RegisterServiceAreaAdminServiceServer(srv, serviceAreaAdminService)
 	v1.RegisterDispatchCallbackServiceServer(srv, callbackService)
+	// 订单与行程服务（模块2）。
+	v1.RegisterRideServiceServer(srv, rideService)
 
 	return srv
 }

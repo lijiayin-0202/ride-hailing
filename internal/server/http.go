@@ -24,6 +24,7 @@ func NewHTTPServer(
 	stationService *service.StationService,
 	serviceAreaAdminService *service.ServiceAreaAdminService,
 	dispatchService *service.DispatchService,
+	rideService *service.RideService,
 ) *http.Server {
 	// 中间件顺序：panic 兜底 → 链路追踪 → 请求日志；并挂统一响应/错误编码器。
 	opts := []http.ServerOption{
@@ -57,6 +58,22 @@ func NewHTTPServer(
 	v1.RegisterStationServiceHTTPServer(srv, stationService)
 	v1.RegisterServiceAreaAdminServiceHTTPServer(srv, serviceAreaAdminService)
 	v1.RegisterDispatchServiceHTTPServer(srv, dispatchService)
+
+	// 乘客端订单与行程（模块2）。
+	v1.RegisterRideServiceHTTPServer(srv, rideService)
+	srv.Route("/").GET("/api/v1/passenger/orders/{order_id}/events", rideService.StreamOrderEventsHTTP)
+
+	// 后台管理接口（GVA 后台调用），统一由 X-Internal-Token 保护。
+	internal := srv.Route("/api/v1/internal")
+	internal.GET("/orders", rideService.AdminListOrders)
+	internal.GET("/orders/{order_id}", rideService.AdminGetOrder)
+	internal.POST("/orders/{order_id}/dispatch", rideService.AdminDispatch)
+	internal.POST("/orders/{order_id}/commands", rideService.AdminCommand)
+	internal.GET("/passengers", rideService.AdminListPassengers)
+	internal.GET("/passengers/{passenger_id}", rideService.AdminGetPassenger)
+	internal.GET("/vehicles", rideService.AdminListVehicles)
+	internal.GET("/vehicles/{vehicle_id}", rideService.AdminGetVehicle)
+	internal.GET("/dispatch-records", rideService.AdminListDispatchRecords)
 
 	return srv
 }
