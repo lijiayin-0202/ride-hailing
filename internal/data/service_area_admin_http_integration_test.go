@@ -27,7 +27,8 @@ func TestServiceAreaToStationAdministrationLifecycle(t *testing.T) {
 	stationUsecase := biz.NewStationUsecase(newStationRepositoryForTest(t, pool), repository)
 	server := httptest.NewServer(appserver.NewHTTPServer(&conf.Server{}, log.NewStdLogger(io.Discard),
 		(*service.PassengerAccountService)(nil),
-		service.NewStationService(stationUsecase), service.NewServiceAreaAdminService(areaUsecase), service.NewDispatchService(nil)))
+		service.NewStationService(stationUsecase), service.NewServiceAreaAdminService(areaUsecase), service.NewDispatchService(nil),
+		(*service.RideService)(nil), (*service.VehicleHMIService)(nil)))
 	t.Cleanup(server.Close)
 
 	unique := strconv.FormatInt(time.Now().UnixNano(), 36)

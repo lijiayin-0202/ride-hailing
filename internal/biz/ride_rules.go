@@ -53,7 +53,7 @@ func estimateRoute(origin, destination Place) (int32, int32) {
 	return int32(math.Round(distance)), int32(math.Round(duration))
 }
 
-func calculateFare(rule PricingRule, distance int32, coupon *Coupon) Fare {
+func calculateFare(rule PricingRule, distance int32, coupon *QuoteCoupon) Fare {
 	extraMeters := int64(max(0, distance-rule.BaseDistanceMeters))
 	distanceCents := int64(math.Ceil(float64(extraMeters)/1000)) * rule.DistanceUnitPriceCents
 	original := rule.BaseFareCents + distanceCents

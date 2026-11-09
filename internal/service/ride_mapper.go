@@ -116,7 +116,7 @@ func liveViewToAPI(view *biz.OrderLiveView) *v1.OrderLiveViewReply {
 	if view.Location != nil {
 		reply.Location = &v1.LatestLocation{
 			Longitude: view.Location.Longitude, Latitude: view.Location.Latitude,
-			SpeedKmh: view.Location.SpeedKMH, ReportedAt: formatTime(&view.Location.ReportedAt),
+			SpeedKmh: view.Location.SpeedKMH, ReportedAt: formatOptionalTime(&view.Location.ReportedAt),
 		}
 	}
 	if view.Dispatch != nil {
@@ -125,20 +125,20 @@ func liveViewToAPI(view *biz.OrderLiveView) *v1.OrderLiveViewReply {
 			DispatchStatus: view.Dispatch.Status, VehicleResponse: view.Dispatch.VehicleResponse,
 			AttemptCount: view.Dispatch.AttemptCount, PickupEtaSeconds: view.Dispatch.PickupETASeconds,
 			PickupDistanceMeters: view.Dispatch.PickupDistanceMeters,
-			DispatchedAt:         formatTime(view.Dispatch.DispatchedAt),
+			DispatchedAt:         formatOptionalTime(view.Dispatch.DispatchedAt),
 		}
 	}
 	if view.Boarding != nil {
 		reply.Boarding = &v1.BoardingVerification{
 			Method: view.Boarding.Method, Status: view.Boarding.Status,
-			VerifiedAt: formatTime(view.Boarding.VerifiedAt), Attempts: view.Boarding.Attempts,
+			VerifiedAt: formatOptionalTime(view.Boarding.VerifiedAt), Attempts: view.Boarding.Attempts,
 		}
 	}
 	for _, event := range view.Safety {
 		reply.SafetyEvents = append(reply.SafetyEvents, &v1.SafetyEvent{
 			EventId: strconv.FormatInt(event.ID, 10), Type: event.Type, Level: event.Level,
 			Description: event.Description, Status: event.Status,
-			OccurredAt: formatTime(&event.OccurredAt),
+			OccurredAt: formatOptionalTime(&event.OccurredAt),
 		})
 	}
 	return reply
@@ -162,13 +162,13 @@ func settlementToAPI(settlement *biz.Settlement) *v1.SettlementReply {
 			PaymentId: formatID("pay", settlement.Payment.PaymentID),
 			PaymentNo: settlement.Payment.PaymentNo, Method: settlement.Payment.Method,
 			Status: settlement.Payment.Status, Amount: toYuan(settlement.Payment.AmountCents),
-			PaidAt: formatTime(settlement.Payment.PaidAt),
+			PaidAt: formatOptionalTime(settlement.Payment.PaidAt),
 		}
 	}
 	if settlement.Review != nil {
 		reply.Review = &v1.SettlementReview{
 			Submitted: settlement.Review.Submitted, Rating: settlement.Review.Rating,
-			Tags: settlement.Review.Tags, SubmittedAt: formatTime(settlement.Review.SubmittedAt),
+			Tags: settlement.Review.Tags, SubmittedAt: formatOptionalTime(settlement.Review.SubmittedAt),
 		}
 	}
 	return reply
@@ -181,7 +181,7 @@ func cancellationToAPI(cancellation *biz.Cancellation) *v1.CancelOrderReply {
 		CancelFeeAmount: toYuan(cancellation.FeeCents), CancelFeeRule: cancellation.RuleCode,
 		CancelFeeDescription: biz.CancelRuleText(cancellation.RuleCode),
 		RefundAmount:         toYuan(cancellation.RefundCents), Currency: "CNY",
-		CancelledAt: formatTime(&cancellation.CancelledAt),
+		CancelledAt: formatOptionalTime(&cancellation.CancelledAt),
 	}
 }
 
@@ -202,7 +202,7 @@ func eventToAPI(event biz.OrderEvent) *v1.OrderEvent {
 	return &v1.OrderEvent{EventId: strconv.FormatInt(event.ID, 10), EventType: event.EventType, OccurredAt: event.OccurredAt.Format(time.RFC3339Nano), OrderStatus: status, StatusText: text, Longitude: event.Longitude, Latitude: event.Latitude, SpeedKmh: event.SpeedKMH}
 }
 
-func formatTime(value *time.Time) string {
+func formatOptionalTime(value *time.Time) string {
 	if value == nil || value.IsZero() {
 		return ""
 	}

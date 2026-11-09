@@ -21,7 +21,7 @@ func (r *rideRepo) GetOrderAny(ctx context.Context, orderID int64) (*biz.Order, 
 
 // ListOrdersForAdmin 后台订单分页列表，复用乘客端详情查询保证字段口径一致。
 func (r *rideRepo) ListOrdersForAdmin(ctx context.Context, filter biz.AdminOrderFilter) (*biz.AdminOrderPage, error) {
-	countQuery := applyAdminOrderFilter(r.data.db.WithContext(ctx).Table("trip_orders AS o"), filter)
+	countQuery := applyAdminOrderFilter(r.data.gormDB.WithContext(ctx).Table("trip_orders AS o"), filter)
 	var total int64
 	if err := countQuery.Count(&total).Error; err != nil {
 		return nil, err
@@ -57,9 +57,9 @@ func applyAdminOrderFilter(query *gorm.DB, filter biz.AdminOrderFilter) *gorm.DB
 	return query
 }
 
-func (r *rideRepo) GetVehicle(ctx context.Context, vehicleID int64) (*biz.Vehicle, error) {
+func (r *rideRepo) GetVehicle(ctx context.Context, vehicleID int64) (*biz.RideVehicle, error) {
 	var row vehicleRow
-	err := r.data.db.WithContext(ctx).Table("vehicles").
+	err := r.data.gormDB.WithContext(ctx).Table("vehicles").
 		Select("id, vehicle_no, plate_no, vehicle_model").
 		Where("id = ?", vehicleID).Take(&row).Error
 	if err != nil {
@@ -68,13 +68,13 @@ func (r *rideRepo) GetVehicle(ctx context.Context, vehicleID int64) (*biz.Vehicl
 		}
 		return nil, err
 	}
-	return &biz.Vehicle{ID: row.ID, PlateNo: row.PlateNo, Model: row.VehicleModel, BodyNo: row.VehicleNo}, nil
+	return &biz.RideVehicle{ID: row.ID, PlateNo: row.PlateNo, Model: row.VehicleModel, BodyNo: row.VehicleNo}, nil
 }
 
 // PickAvailableVehicle 挑选区域内在线、运营中且未被活动订单占用的车辆，电量高者优先。
-func (r *rideRepo) PickAvailableVehicle(ctx context.Context, serviceAreaID int64) (*biz.Vehicle, error) {
+func (r *rideRepo) PickAvailableVehicle(ctx context.Context, serviceAreaID int64) (*biz.RideVehicle, error) {
 	var row vehicleRow
-	err := r.data.db.WithContext(ctx).Raw(`
+	err := r.data.gormDB.WithContext(ctx).Raw(`
 		SELECT v.id, v.vehicle_no, v.plate_no, v.vehicle_model
 		FROM vehicles v
 		WHERE v.service_area_id = ? AND v.online_status = 1 AND v.operation_status = 1
@@ -93,7 +93,7 @@ func (r *rideRepo) PickAvailableVehicle(ctx context.Context, serviceAreaID int64
 	if row.ID == 0 {
 		return nil, nil
 	}
-	return &biz.Vehicle{ID: row.ID, PlateNo: row.PlateNo, Model: row.VehicleModel, BodyNo: row.VehicleNo}, nil
+	return &biz.RideVehicle{ID: row.ID, PlateNo: row.PlateNo, Model: row.VehicleModel, BodyNo: row.VehicleNo}, nil
 }
 
 type vehicleRow struct {

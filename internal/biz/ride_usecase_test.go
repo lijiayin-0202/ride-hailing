@@ -50,8 +50,8 @@ func (r *fakeRideRepo) ListServiceTypes(context.Context, string, time.Time) ([]S
 func (r *fakeRideRepo) CountAvailableVehicles(context.Context, int64, int64) (int32, error) {
 	return r.available, nil
 }
-func (r *fakeRideRepo) FindCoupon(context.Context, int64, string, int64) (*Coupon, error) {
-	return &Coupon{Name: "新客券", DiscountCents: 200, PassengerCoupon: 9}, nil
+func (r *fakeRideRepo) FindCoupon(context.Context, int64, string, int64) (*QuoteCoupon, error) {
+	return &QuoteCoupon{Name: "新客券", DiscountCents: 200, PassengerCoupon: 9}, nil
 }
 func (r *fakeRideRepo) CreateQuote(_ context.Context, quote *Quote) error {
 	quote.ID = 1
@@ -97,8 +97,8 @@ func (r *fakeRideRepo) ListOrdersForAdmin(context.Context, AdminOrderFilter) (*A
 func (r *fakeRideRepo) ListPassengersForAdmin(context.Context, AdminPassengerFilter) (*AdminPassengerPage, error) {
 	return &AdminPassengerPage{}, nil
 }
-func (r *fakeRideRepo) GetPassengerAny(context.Context, int64) (*Passenger, error) {
-	return &Passenger{ID: 1, Nickname: "测试乘客"}, nil
+func (r *fakeRideRepo) GetPassengerAny(context.Context, int64) (*AdminPassenger, error) {
+	return &AdminPassenger{ID: 1, Nickname: "测试乘客"}, nil
 }
 func (r *fakeRideRepo) ListVehiclesForAdmin(context.Context, AdminVehicleFilter) (*AdminVehiclePage, error) {
 	return &AdminVehiclePage{}, nil
@@ -109,11 +109,11 @@ func (r *fakeRideRepo) GetVehicleAny(context.Context, int64) (*AdminVehicle, err
 func (r *fakeRideRepo) ListDispatchRecordsForAdmin(context.Context, AdminDispatchRecordFilter) (*AdminDispatchRecordPage, error) {
 	return &AdminDispatchRecordPage{}, nil
 }
-func (r *fakeRideRepo) GetVehicle(context.Context, int64) (*Vehicle, error) {
-	return &Vehicle{ID: 3, PlateNo: "苏N·D1234"}, nil
+func (r *fakeRideRepo) GetVehicle(context.Context, int64) (*RideVehicle, error) {
+	return &RideVehicle{ID: 3, PlateNo: "苏N·D1234"}, nil
 }
-func (r *fakeRideRepo) PickAvailableVehicle(context.Context, int64) (*Vehicle, error) {
-	return &Vehicle{ID: 3, PlateNo: "苏N·D1234"}, nil
+func (r *fakeRideRepo) PickAvailableVehicle(context.Context, int64) (*RideVehicle, error) {
+	return &RideVehicle{ID: 3, PlateNo: "苏N·D1234"}, nil
 }
 
 func (r *fakeRideRepo) GetLiveView(context.Context, int64, int64) (*OrderLiveView, error) {

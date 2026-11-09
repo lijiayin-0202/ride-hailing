@@ -84,7 +84,7 @@ func adminItemFromVehicle(vehicle *biz.AdminVehicle) adminVehicleItem {
 		Model: vehicle.Model, SeatCount: vehicle.SeatCount, ServiceAreaID: vehicle.ServiceAreaID,
 		ServiceAreaName: vehicle.ServiceAreaName, OperationStatus: vehicle.OperationStatus,
 		OnlineStatus: vehicle.OnlineStatus, BatteryPercent: vehicle.BatteryPercent,
-		SoftwareVersion: vehicle.SoftwareVersion, LastReportedAt: formatTime(vehicle.LastReportedAt),
+		SoftwareVersion: vehicle.SoftwareVersion, LastReportedAt: formatOptionalTime(vehicle.LastReportedAt),
 		CreatedAt: vehicle.CreatedAt.Format(time.RFC3339),
 	}
 }

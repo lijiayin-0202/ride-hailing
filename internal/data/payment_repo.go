@@ -15,7 +15,7 @@ import (
 //   - 回调金额必须与服务端支付单金额一致，避免前端/渠道篡改金额。
 func (r *rideRepo) HandlePaymentCallback(ctx context.Context, callback *biz.PaymentCallback) (*biz.PaymentCallbackResult, error) {
 	var row paymentRow
-	err := r.data.db.WithContext(ctx).Where("payment_no = ?", callback.PaymentNo).First(&row).Error
+	err := r.data.gormDB.WithContext(ctx).Where("payment_no = ?", callback.PaymentNo).First(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, biz.ErrNotFound
 	}
@@ -37,7 +37,7 @@ func (r *rideRepo) HandlePaymentCallback(ctx context.Context, callback *biz.Paym
 		if now.IsZero() {
 			now = time.Now()
 		}
-		if err := r.data.db.WithContext(ctx).Table("payments").
+		if err := r.data.gormDB.WithContext(ctx).Table("payments").
 			Where("payment_no = ? AND payment_status <> ?", callback.PaymentNo, biz.PaymentStatusPaid).
 			Updates(map[string]any{
 				"payment_status":    biz.PaymentStatusPaid,
@@ -58,7 +58,7 @@ func (r *rideRepo) HandlePaymentCallback(ctx context.Context, callback *biz.Paym
 		return result, nil
 	}
 	now := time.Now()
-	if err := r.data.db.WithContext(ctx).Table("payments").
+	if err := r.data.gormDB.WithContext(ctx).Table("payments").
 		Where("payment_no = ?", callback.PaymentNo).
 		Updates(map[string]any{
 			"payment_status": biz.PaymentStatusFailed,

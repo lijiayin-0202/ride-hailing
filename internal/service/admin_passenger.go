@@ -75,12 +75,12 @@ func (s *RideService) AdminGetPassenger(ctx kratoshttp.Context) error {
 	return ctx.Result(200, map[string]any{"passenger": adminItemFromPassenger(passenger)})
 }
 
-func adminItemFromPassenger(passenger *biz.Passenger) adminPassengerItem {
+func adminItemFromPassenger(passenger *biz.AdminPassenger) adminPassengerItem {
 	return adminPassengerItem{
 		PassengerID: passenger.ID, PassengerNo: passenger.PassengerNo, Mobile: passenger.Mobile,
 		Nickname: passenger.Nickname, AvatarURL: passenger.AvatarURL, ExternalProvider: passenger.ExternalProvider,
 		RealNameStatus: passenger.RealNameStatus, AccountStatus: passenger.AccountStatus,
-		PointBalance: passenger.PointBalance, LastLoginAt: formatTime(passenger.LastLoginAt),
+		PointBalance: passenger.PointBalance, LastLoginAt: formatOptionalTime(passenger.LastLoginAt),
 		CreatedAt: passenger.CreatedAt.Format(time.RFC3339),
 	}
 }

@@ -35,7 +35,7 @@ func (uc *RideUsecase) AdminListPassengers(ctx context.Context, filter AdminPass
 }
 
 // AdminGetPassenger 后台乘客详情。
-func (uc *RideUsecase) AdminGetPassenger(ctx context.Context, passengerID int64) (*Passenger, error) {
+func (uc *RideUsecase) AdminGetPassenger(ctx context.Context, passengerID int64) (*AdminPassenger, error) {
 	if passengerID <= 0 {
 		return nil, ErrInvalidArgument
 	}
@@ -96,7 +96,7 @@ func (uc *RideUsecase) AdminGetOrder(ctx context.Context, orderID int64) (*Order
 
 // AdminDispatch 后台派车：0 待派车先派单，再指定（或自动挑选）车辆确认接单。
 // 车辆确认会把 trip_orders.vehicle_id 绑定到订单，乘客端即可看到车牌。
-func (uc *RideUsecase) AdminDispatch(ctx context.Context, orderID, vehicleID int64) (*Order, *Vehicle, error) {
+func (uc *RideUsecase) AdminDispatch(ctx context.Context, orderID, vehicleID int64) (*Order, *RideVehicle, error) {
 	if orderID <= 0 {
 		return nil, nil, ErrInvalidArgument
 	}
@@ -128,7 +128,7 @@ func (uc *RideUsecase) AdminDispatch(ctx context.Context, orderID, vehicleID int
 	return updated, vehicle, nil
 }
 
-func (uc *RideUsecase) resolveVehicle(ctx context.Context, serviceAreaID, vehicleID int64) (*Vehicle, error) {
+func (uc *RideUsecase) resolveVehicle(ctx context.Context, serviceAreaID, vehicleID int64) (*RideVehicle, error) {
 	if vehicleID > 0 {
 		vehicle, err := uc.repo.GetVehicle(ctx, vehicleID)
 		if err != nil {

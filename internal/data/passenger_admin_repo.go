@@ -27,8 +27,8 @@ type passengerRow struct {
 	CreatedAt        time.Time
 }
 
-func (row passengerRow) toBiz() *biz.Passenger {
-	passenger := &biz.Passenger{
+func (row passengerRow) toBiz() *biz.AdminPassenger {
+	passenger := &biz.AdminPassenger{
 		ID: row.ID, PassengerNo: row.PassengerNo, Mobile: row.Mobile, Nickname: row.Nickname,
 		RealNameStatus: row.RealNameStatus, AccountStatus: row.AccountStatus,
 		PointBalance: row.PointBalance, LastLoginAt: row.LastLoginAt, CreatedAt: row.CreatedAt,
@@ -45,7 +45,7 @@ func (row passengerRow) toBiz() *biz.Passenger {
 // ListPassengersForAdmin 后台乘客分页列表。
 func (r *rideRepo) ListPassengersForAdmin(ctx context.Context, filter biz.AdminPassengerFilter) (*biz.AdminPassengerPage, error) {
 	var total int64
-	if err := applyAdminPassengerFilter(r.data.db.WithContext(ctx).Table("passengers"), filter).Count(&total).Error; err != nil {
+	if err := applyAdminPassengerFilter(r.data.gormDB.WithContext(ctx).Table("passengers"), filter).Count(&total).Error; err != nil {
 		return nil, err
 	}
 	page := &biz.AdminPassengerPage{Total: total}
@@ -54,7 +54,7 @@ func (r *rideRepo) ListPassengersForAdmin(ctx context.Context, filter biz.AdminP
 	}
 	var rows []passengerRow
 	offset := (filter.Page - 1) * filter.PageSize
-	query := applyAdminPassengerFilter(r.data.db.WithContext(ctx).Table("passengers"), filter).
+	query := applyAdminPassengerFilter(r.data.gormDB.WithContext(ctx).Table("passengers"), filter).
 		Select(passengerAdminColumns)
 	if err := query.Order("created_at DESC, id DESC").Limit(filter.PageSize).Offset(offset).Scan(&rows).Error; err != nil {
 		return nil, err
@@ -66,9 +66,9 @@ func (r *rideRepo) ListPassengersForAdmin(ctx context.Context, filter biz.AdminP
 }
 
 // GetPassengerAny 后台乘客详情，不校验归属。
-func (r *rideRepo) GetPassengerAny(ctx context.Context, passengerID int64) (*biz.Passenger, error) {
+func (r *rideRepo) GetPassengerAny(ctx context.Context, passengerID int64) (*biz.AdminPassenger, error) {
 	var row passengerRow
-	err := r.data.db.WithContext(ctx).Table("passengers").
+	err := r.data.gormDB.WithContext(ctx).Table("passengers").
 		Select(passengerAdminColumns).Where("id = ?", passengerID).Take(&row).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound || isOptionalRelationError(err) {

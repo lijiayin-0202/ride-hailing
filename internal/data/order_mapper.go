@@ -64,7 +64,7 @@ func (r *rideRepo) newOrderRow(order *biz.Order) (*OrderRow, error) {
 
 func (r *rideRepo) stationID(serviceAreaID int64, placeID string) (int64, error) {
 	var row struct{ ID int64 }
-	query := r.data.db.Table("stations").Select("id").Where(
+	query := r.data.gormDB.Table("stations").Select("id").Where(
 		"service_area_id = ? AND (station_code = ? OR station_name = ?) AND status = 1",
 		serviceAreaID, placeID, placeID,
 	)
@@ -72,7 +72,7 @@ func (r *rideRepo) stationID(serviceAreaID int64, placeID string) (int64, error)
 		return row.ID, nil
 	}
 	if parsed, err := strconv.ParseInt(placeID, 10, 64); err == nil && parsed > 0 {
-		if err := r.data.db.Table("stations").Select("id").Where("service_area_id = ? AND id = ? AND status = 1", serviceAreaID, parsed).Take(&row).Error; err == nil {
+		if err := r.data.gormDB.Table("stations").Select("id").Where("service_area_id = ? AND id = ? AND status = 1", serviceAreaID, parsed).Take(&row).Error; err == nil {
 			return row.ID, nil
 		}
 	}
@@ -97,7 +97,7 @@ func (r *rideRepo) loadOrder(ctx context.Context, where string, args ...any) (or
 }
 
 func (r *rideRepo) orderDetailsQuery(ctx context.Context) *gorm.DB {
-	return r.data.db.WithContext(ctx).Table("trip_orders AS o").Select(`
+	return r.data.gormDB.WithContext(ctx).Table("trip_orders AS o").Select(`
         o.*, o.created_at AS requested_at,
         ROUND(o.estimated_distance_km * 1000)::integer AS estimated_distance_m,
         o.estimated_duration_min * 60 AS estimated_duration_s,
@@ -153,7 +153,7 @@ func orderFromDetail(row orderDetailRow) *biz.Order {
 		RideMode: row.RideMode, ScheduledAt: row.ScheduledAt,
 	}
 	if row.VehicleID != nil {
-		order.Vehicle = &biz.Vehicle{ID: *row.VehicleID, PlateNo: row.PlateNo,
+		order.Vehicle = &biz.RideVehicle{ID: *row.VehicleID, PlateNo: row.PlateNo,
 			BodyNo: row.VehicleNo, Model: row.VehicleModel, Color: row.VehicleColor,
 			ServiceTypeName: row.ServiceDisplayName}
 	}

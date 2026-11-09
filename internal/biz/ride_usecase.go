@@ -36,7 +36,7 @@ func (uc *RideUsecase) EstimateFare(ctx context.Context, quote *Quote, couponID 
 			originalMax = fare.OriginalCents
 		}
 	}
-	var coupon *Coupon
+	var coupon *QuoteCoupon
 	if couponID != "" && quote.PassengerID > 0 {
 		coupon, err = uc.repo.FindCoupon(ctx, quote.PassengerID, couponID, originalMax)
 		if err != nil && !errors.Is(err, ErrNotFound) {

@@ -25,7 +25,7 @@ func (r *rideRepo) CreateOrder(ctx context.Context, order *biz.Order) (*biz.Orde
 	if err != nil {
 		return nil, false, err
 	}
-	err = r.data.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err = r.data.gormDB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return r.createOrderTransaction(tx, order, row)
 	})
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
@@ -135,7 +135,7 @@ func (r *rideRepo) GetOrder(ctx context.Context, passengerID, orderID int64) (*b
 
 func (r *rideRepo) ExecuteCommand(ctx context.Context, command *biz.OrderCommand) (*biz.OrderCommand, error) {
 	var existing commandRow
-	err := r.data.db.WithContext(ctx).
+	err := r.data.gormDB.WithContext(ctx).
 		Where("passenger_id = ? AND idempotency_key = ?", command.PassengerID, command.IdempotencyKey).
 		First(&existing).Error
 	if err == nil {
@@ -151,7 +151,7 @@ func (r *rideRepo) ExecuteCommand(ctx context.Context, command *biz.OrderCommand
 		return nil, err
 	}
 	row := commandToRow(command)
-	err = r.data.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err = r.data.gormDB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return r.executeCommandTransaction(tx, command, row)
 	})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -280,7 +280,7 @@ func (r *rideRepo) CancelOrder(ctx context.Context, cancellation *biz.Cancellati
 	var alreadyCancelled bool
 	var releaseCoupon *int64
 	var paidCents int64
-	err := r.data.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := r.data.gormDB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var locked struct {
 			ID                int64
 			Status            int16

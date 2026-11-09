@@ -20,7 +20,7 @@ func (r *rideRepo) ListEvents(ctx context.Context, passengerID, orderID, afterID
 		Latitude   float64
 		SpeedKMH   float64
 	}
-	err := r.data.db.WithContext(ctx).Raw(`
+	err := r.data.gormDB.WithContext(ctx).Raw(`
 		SELECT * FROM (
 		  SELECT ((EXTRACT(EPOCH FROM e.occurred_at) * 1000000)::bigint * 100
 		         + MOD(e.source_id, 50) * 2 + e.source_type)::bigint AS id,
@@ -60,7 +60,7 @@ func (r *rideRepo) ListEvents(ctx context.Context, passengerID, orderID, afterID
 
 func (r *rideRepo) CreatePayment(ctx context.Context, payment *biz.Payment) (*biz.Payment, bool, error) {
 	var row paymentRow
-	err := r.data.db.WithContext(ctx).Where("passenger_id = ? AND idempotency_key = ?", payment.PassengerID, payment.IdempotencyKey).First(&row).Error
+	err := r.data.gormDB.WithContext(ctx).Where("passenger_id = ? AND idempotency_key = ?", payment.PassengerID, payment.IdempotencyKey).First(&row).Error
 	if err == nil {
 		return paymentFromRow(row), true, nil
 	}
@@ -68,7 +68,7 @@ func (r *rideRepo) CreatePayment(ctx context.Context, payment *biz.Payment) (*bi
 		return nil, false, err
 	}
 	row = paymentRow{}
-	result := r.data.db.WithContext(ctx).Table("payments").Create(map[string]any{
+	result := r.data.gormDB.WithContext(ctx).Table("payments").Create(map[string]any{
 		"payment_no": payment.PaymentNo, "order_id": payment.OrderID,
 		"passenger_id": payment.PassengerID, "payment_method": payment.Method,
 		"amount": cents(payment.Amount), "payment_status": biz.PaymentStatusPending,
@@ -77,7 +77,7 @@ func (r *rideRepo) CreatePayment(ctx context.Context, payment *biz.Payment) (*bi
 	if result.Error != nil {
 		return nil, false, result.Error
 	}
-	if err := r.data.db.WithContext(ctx).Table("payments").Where("payment_no = ?", payment.PaymentNo).Take(&row).Error; err != nil {
+	if err := r.data.gormDB.WithContext(ctx).Table("payments").Where("payment_no = ?", payment.PaymentNo).Take(&row).Error; err != nil {
 		return nil, false, err
 	}
 	return paymentFromRow(row), false, nil
@@ -85,14 +85,14 @@ func (r *rideRepo) CreatePayment(ctx context.Context, payment *biz.Payment) (*bi
 
 func (r *rideRepo) CreateReview(ctx context.Context, review *biz.Review) (*biz.Review, bool, error) {
 	var row reviewRow
-	err := r.data.db.WithContext(ctx).Where("order_id = ?", review.OrderID).First(&row).Error
+	err := r.data.gormDB.WithContext(ctx).Where("order_id = ?", review.OrderID).First(&row).Error
 	if err == nil {
 		return reviewFromRow(row), true, nil
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, false, err
 	}
-	result := r.data.db.WithContext(ctx).Table("trip_reviews").Create(map[string]any{
+	result := r.data.gormDB.WithContext(ctx).Table("trip_reviews").Create(map[string]any{
 		"order_id": review.OrderID, "passenger_id": review.PassengerID,
 		"overall_score": review.Rating, "review_content": review.Comment,
 		"is_anonymous": review.Anonymous, "review_status": 1,
@@ -102,13 +102,13 @@ func (r *rideRepo) CreateReview(ctx context.Context, review *biz.Review) (*biz.R
 		// trip_reviews.order_id 上有唯一约束时，并发重复评价按幂等冲突处理。
 		if errors.Is(result.Error, gorm.ErrDuplicatedKey) {
 			var duplicated reviewRow
-			if err := r.data.db.WithContext(ctx).Where("order_id = ?", review.OrderID).Take(&duplicated).Error; err == nil {
+			if err := r.data.gormDB.WithContext(ctx).Where("order_id = ?", review.OrderID).Take(&duplicated).Error; err == nil {
 				return reviewFromRow(duplicated), true, nil
 			}
 		}
 		return nil, false, result.Error
 	}
-	if err := r.data.db.WithContext(ctx).Table("trip_reviews").Where("order_id = ?", review.OrderID).Take(&row).Error; err != nil {
+	if err := r.data.gormDB.WithContext(ctx).Table("trip_reviews").Where("order_id = ?", review.OrderID).Take(&row).Error; err != nil {
 		return nil, false, err
 	}
 	return reviewFromRow(row), false, nil

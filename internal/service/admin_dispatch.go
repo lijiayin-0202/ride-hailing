@@ -60,7 +60,7 @@ func adminItemFromDispatch(record *biz.AdminDispatchRecord) adminDispatchItem {
 		VehicleID: record.VehicleID, PlateNo: record.PlateNo, DispatchStrategy: record.DispatchStrategy,
 		CandidateScore: record.CandidateScore, EstimatedPickupDistanceKM: record.EstimatedPickupDistanceKM,
 		EstimatedArrivalMin: record.EstimatedArrivalMin, Status: record.Status, FailureReason: record.FailureReason,
-		DispatchedAt: formatTime(record.DispatchedAt), RespondedAt: formatTime(record.RespondedAt),
+		DispatchedAt: formatOptionalTime(record.DispatchedAt), RespondedAt: formatOptionalTime(record.RespondedAt),
 		CreatedAt: record.CreatedAt.Format(time.RFC3339),
 	}
 }

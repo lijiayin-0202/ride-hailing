@@ -21,7 +21,7 @@ func isOptionalRelationError(err error) bool {
 
 // queryRowMaps 以 SELECT * 方式读取行并映射为 map，避免依赖跨模块表的列名假设。
 func (r *rideRepo) queryRowMaps(ctx context.Context, query string, args ...any) ([]map[string]any, error) {
-	rows, err := r.data.db.WithContext(ctx).Raw(query, args...).Rows()
+	rows, err := r.data.gormDB.WithContext(ctx).Raw(query, args...).Rows()
 	if err != nil {
 		return nil, err
 	}

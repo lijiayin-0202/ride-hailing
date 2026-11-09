@@ -8,7 +8,7 @@ import (
 
 func TestCalculateFareUsesIntegerCents(t *testing.T) {
 	rule := PricingRule{BaseFareCents: 1260, BaseDistanceMeters: 3000, DistanceUnitPriceCents: 160}
-	fare := calculateFare(rule, 42180, &Coupon{DiscountCents: 500})
+	fare := calculateFare(rule, 42180, &QuoteCoupon{DiscountCents: 500})
 	if fare.OriginalCents != 7660 {
 		t.Fatalf("expected original 7660, actual %d", fare.OriginalCents)
 	}
@@ -19,7 +19,7 @@ func TestCalculateFareUsesIntegerCents(t *testing.T) {
 
 func TestCalculateFareIncludesCouponBreakdown(t *testing.T) {
 	rule := PricingRule{BaseFareCents: 1000, BaseDistanceMeters: 3000, DistanceUnitPriceCents: 100}
-	fare := calculateFare(rule, 4000, &Coupon{DiscountCents: 200})
+	fare := calculateFare(rule, 4000, &QuoteCoupon{DiscountCents: 200})
 	if len(fare.Items) != 3 {
 		t.Fatalf("expected 3 fare items, actual %d", len(fare.Items))
 	}

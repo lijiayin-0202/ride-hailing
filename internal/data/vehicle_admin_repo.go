@@ -52,7 +52,7 @@ func vehicleAdminQuery(db *gorm.DB) *gorm.DB {
 // ListVehiclesForAdmin 后台车辆分页列表。
 func (r *rideRepo) ListVehiclesForAdmin(ctx context.Context, filter biz.AdminVehicleFilter) (*biz.AdminVehiclePage, error) {
 	var total int64
-	if err := applyAdminVehicleFilter(vehicleAdminQuery(r.data.db.WithContext(ctx)), filter).Count(&total).Error; err != nil {
+	if err := applyAdminVehicleFilter(vehicleAdminQuery(r.data.gormDB.WithContext(ctx)), filter).Count(&total).Error; err != nil {
 		return nil, err
 	}
 	page := &biz.AdminVehiclePage{Total: total}
@@ -61,7 +61,7 @@ func (r *rideRepo) ListVehiclesForAdmin(ctx context.Context, filter biz.AdminVeh
 	}
 	var rows []vehicleAdminRow
 	offset := (filter.Page - 1) * filter.PageSize
-	query := applyAdminVehicleFilter(vehicleAdminQuery(r.data.db.WithContext(ctx)), filter).Select(vehicleAdminColumns)
+	query := applyAdminVehicleFilter(vehicleAdminQuery(r.data.gormDB.WithContext(ctx)), filter).Select(vehicleAdminColumns)
 	if err := query.Order("v.created_at DESC, v.id DESC").Limit(filter.PageSize).Offset(offset).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (r *rideRepo) ListVehiclesForAdmin(ctx context.Context, filter biz.AdminVeh
 // GetVehicleAny 后台车辆详情，不校验归属。
 func (r *rideRepo) GetVehicleAny(ctx context.Context, vehicleID int64) (*biz.AdminVehicle, error) {
 	var row vehicleAdminRow
-	err := vehicleAdminQuery(r.data.db.WithContext(ctx)).Select(vehicleAdminColumns).
+	err := vehicleAdminQuery(r.data.gormDB.WithContext(ctx)).Select(vehicleAdminColumns).
 		Where("v.id = ?", vehicleID).Take(&row).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound || isOptionalRelationError(err) {

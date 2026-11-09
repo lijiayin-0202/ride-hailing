@@ -16,4 +16,5 @@ var ProviderSet = wire.NewSet(
 	NewServiceAreaAdminService,
 	NewDispatchCallbackService,
 	NewDispatchService,
+	NewVehicleHMIService,
 )

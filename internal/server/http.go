@@ -25,6 +25,7 @@ func NewHTTPServer(
 	serviceAreaAdminService *service.ServiceAreaAdminService,
 	dispatchService *service.DispatchService,
 	rideService *service.RideService,
+	vehicleHMIService *service.VehicleHMIService,
 ) *http.Server {
 	// 中间件顺序：panic 兜底 → 链路追踪 → 请求日志；并挂统一响应/错误编码器。
 	opts := []http.ServerOption{
@@ -61,6 +62,8 @@ func NewHTTPServer(
 
 	// 乘客端订单与行程（模块2）。
 	v1.RegisterRideServiceHTTPServer(srv, rideService)
+	// 车辆端 HMI：指令确认、上车核验、遥测、故障和安全协助。
+	v1.RegisterVehicleHMIServiceHTTPServer(srv, vehicleHMIService)
 	srv.Route("/").GET("/api/v1/passenger/orders/{order_id}/events", rideService.StreamOrderEventsHTTP)
 
 	// 后台管理接口（GVA 后台调用），统一由 X-Internal-Token 保护。

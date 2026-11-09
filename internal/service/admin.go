@@ -101,19 +101,19 @@ func (s *RideService) AdminGetOrder(ctx kratoshttp.Context) error {
 	if view.Location != nil {
 		detail.Location = map[string]any{
 			"longitude": view.Location.Longitude, "latitude": view.Location.Latitude,
-			"speedKmh": view.Location.SpeedKMH, "reportedAt": formatTime(&view.Location.ReportedAt),
+			"speedKmh": view.Location.SpeedKMH, "reportedAt": formatOptionalTime(&view.Location.ReportedAt),
 		}
 	}
 	if view.Dispatch != nil {
 		detail.Dispatch = map[string]any{
 			"strategy": view.Dispatch.Strategy, "status": view.Dispatch.Status,
 			"attemptCount": view.Dispatch.AttemptCount, "pickupEtaSeconds": view.Dispatch.PickupETASeconds,
-			"dispatchedAt": formatTime(view.Dispatch.DispatchedAt),
+			"dispatchedAt": formatOptionalTime(view.Dispatch.DispatchedAt),
 		}
 	}
 	if view.Boarding != nil {
 		detail.Boarding = map[string]any{
-			"method": view.Boarding.Method, "status": view.Boarding.Status, "verifiedAt": formatTime(view.Boarding.VerifiedAt),
+			"method": view.Boarding.Method, "status": view.Boarding.Status, "verifiedAt": formatOptionalTime(view.Boarding.VerifiedAt),
 		}
 	}
 	return ctx.Result(200, map[string]any{"order": detail, "safetyEvents": len(view.Safety)})

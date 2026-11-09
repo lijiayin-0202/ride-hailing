@@ -3,7 +3,9 @@ package data
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -17,6 +19,7 @@ import (
 
 	"github.com/lijayin-0202/radish-ride-service/internal/biz"
 	"github.com/lijayin-0202/radish-ride-service/internal/conf"
+	dataKafka "github.com/lijayin-0202/radish-ride-service/internal/data/kafka"
 	"github.com/lijayin-0202/radish-ride-service/pkg/cache"
 )
 
@@ -49,6 +52,8 @@ var ProviderSet = wire.NewSet(
 	NewDispatchTimeoutWorker,
 	NewDispatchReassignmentDispatcher,
 	NewConfiguredOrderQueryGateway,
+	// 车辆 HMI PostgreSQL/Kafka 仓储。
+	NewVehicleHMIRepo,
 	wire.Bind(new(biz.ServiceAreaRepository), new(*ServiceAreaRepository)),
 	wire.Bind(new(biz.ServiceAreaAdminRepository), new(*ServiceAreaRepository)),
 	wire.Bind(new(biz.StationRepository), new(*StationRepository)),
@@ -57,6 +62,12 @@ var ProviderSet = wire.NewSet(
 	wire.Bind(new(biz.CandidateVehicleRepository), new(*DispatchRepository)),
 	wire.Bind(new(biz.DispatchStateRepository), new(*DispatchRepository)),
 	wire.Bind(new(biz.PendingDispatchAttemptRepository), new(*DispatchRepository)),
+	wire.Bind(new(biz.VehicleHMIRepo), new(*VehicleHMIRepo)),
+)
+
+var (
+	ErrDatabaseUnavailable = errors.New("postgresql database is unavailable")
+	ErrKafkaUnavailable    = errors.New("kafka producer is unavailable")
 )
 
 // Data 保存共享的 PostgreSQL、Redis 与派单 ID 生成资源。
@@ -66,6 +77,7 @@ type Data struct {
 	pool                *pgxpool.Pool
 	dispatchIDGenerator biz.DispatchIDGenerator
 	rdb                 redis.UniversalClient
+	vehicleHMIWriter    *dataKafka.Writer
 	log                 *log.Helper
 
 	// gormDB 供订单/报价/支付等 GORM 仓储使用，与 pool 指向同一个数据库。
@@ -94,7 +106,10 @@ func NewData(c *conf.Data, logger log.Logger) (*Data, func(), error) {
 			conf.EnvDatabaseSource, conf.EnvDatabaseSource)
 	}
 
-	phoneKey := c.GetSecurity().GetContactPhoneKey()
+	phoneKey := conf.ExpandEnvPlaceholder(c.GetSecurity().GetContactPhoneKey())
+	if len(phoneKey) < 32 {
+		phoneKey = conf.ContactPhoneKey()
+	}
 	if len(phoneKey) < 32 {
 		return nil, nil, fmt.Errorf("联系人手机号加密密钥至少需要 32 字节：请注入环境变量 RIDE_DATA_SECURITY_CONTACT_PHONE_KEY")
 	}
@@ -151,6 +166,9 @@ func NewData(c *conf.Data, logger log.Logger) (*Data, func(), error) {
 		phoneKey:            phoneKey,
 		columnCache:         map[string]bool{},
 	}
+	if brokers := kafkaBrokersFromEnv(); len(brokers) > 0 {
+		d.vehicleHMIWriter = dataKafka.NewWriter(brokers)
+	}
 
 	redisAddr := strings.TrimSpace(c.GetRedis().GetAddr())
 	useCluster := c.GetRedis().GetUseCluster()
@@ -176,6 +194,11 @@ func NewData(c *conf.Data, logger log.Logger) (*Data, func(), error) {
 	}
 
 	cleanup := func() {
+		if d.vehicleHMIWriter != nil {
+			if err := d.vehicleHMIWriter.Close(); err != nil {
+				helper.Errorf("关闭车辆 HMI Kafka 生产者失败: %v", err)
+			}
+		}
 		if d.rdb != nil {
 			_ = d.rdb.Close()
 		}
@@ -186,6 +209,17 @@ func NewData(c *conf.Data, logger log.Logger) (*Data, func(), error) {
 		helper.Info("closing the data resources")
 	}
 	return d, cleanup, nil
+}
+
+func kafkaBrokersFromEnv() []string {
+	parts := strings.Split(os.Getenv("RIDE_KAFKA_BROKERS"), ",")
+	brokers := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if value := strings.TrimSpace(part); value != "" {
+			brokers = append(brokers, value)
+		}
+	}
+	return brokers
 }
 
 // hasColumn 探测表字段是否存在。跨模块表（vehicles / dispatch_records 等）的字段名

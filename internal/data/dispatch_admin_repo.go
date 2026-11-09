@@ -54,7 +54,7 @@ func dispatchAdminQuery(db *gorm.DB) *gorm.DB {
 // ListDispatchRecordsForAdmin 后台派单记录分页列表。
 func (r *rideRepo) ListDispatchRecordsForAdmin(ctx context.Context, filter biz.AdminDispatchRecordFilter) (*biz.AdminDispatchRecordPage, error) {
 	var total int64
-	if err := applyAdminDispatchFilter(dispatchAdminQuery(r.data.db.WithContext(ctx)), filter).Count(&total).Error; err != nil {
+	if err := applyAdminDispatchFilter(dispatchAdminQuery(r.data.gormDB.WithContext(ctx)), filter).Count(&total).Error; err != nil {
 		return nil, err
 	}
 	page := &biz.AdminDispatchRecordPage{Total: total}
@@ -63,7 +63,7 @@ func (r *rideRepo) ListDispatchRecordsForAdmin(ctx context.Context, filter biz.A
 	}
 	var rows []dispatchAdminRow
 	offset := (filter.Page - 1) * filter.PageSize
-	query := applyAdminDispatchFilter(dispatchAdminQuery(r.data.db.WithContext(ctx)), filter).Select(dispatchAdminColumns)
+	query := applyAdminDispatchFilter(dispatchAdminQuery(r.data.gormDB.WithContext(ctx)), filter).Select(dispatchAdminColumns)
 	if err := query.Order("d.created_at DESC, d.id DESC").Limit(filter.PageSize).Offset(offset).Scan(&rows).Error; err != nil {
 		return nil, err
 	}

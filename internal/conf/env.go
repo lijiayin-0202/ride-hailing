@@ -21,7 +21,8 @@ const (
 	EnvSmsEchoCode    = "RIDE_SMS_ECHO_CODE"
 	EnvIDCardSalt     = "RIDE_ID_CARD_SALT"
 	// EnvDataKey 敏感字段 AES-256-GCM 密钥（base64 编码的 32 字节）。
-	EnvDataKey = "RIDE_DATA_KEY"
+	EnvDataKey         = "RIDE_DATA_KEY"
+	EnvContactPhoneKey = "RIDE_DATA_SECURITY_CONTACT_PHONE_KEY"
 )
 
 // DatabaseSource 数据库连接串（敏感项）。空值表示未注入，由调用方决定回退策略。
@@ -54,3 +55,5 @@ func IDCardSalt() string { return strings.TrimSpace(os.Getenv(EnvIDCardSalt)) }
 // 空值表示未注入，由调用方按 fail-closed 策略拒绝启动：
 // 没有密钥就无法保证密文可解，退化为不加密等于把明文写进库。
 func DataKey() string { return strings.TrimSpace(os.Getenv(EnvDataKey)) }
+
+func ContactPhoneKey() string { return strings.TrimSpace(os.Getenv(EnvContactPhoneKey)) }

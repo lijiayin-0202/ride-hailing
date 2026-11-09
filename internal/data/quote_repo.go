@@ -19,7 +19,7 @@ func NewRideRepo(data *Data) biz.RideRepo { return &rideRepo{data: data} }
 
 func (r *rideRepo) ListServiceTypes(ctx context.Context, cityCode string, now time.Time) ([]biz.ServiceType, error) {
 	var rows []serviceTypePricingRow
-	err := r.data.db.WithContext(ctx).Table("vehicle_service_types AS vst").
+	err := r.data.gormDB.WithContext(ctx).Table("vehicle_service_types AS vst").
 		Select(`vst.id, vst.service_type_code, vst.display_name, vst.tags,
             vst.seat_count, vst.pickup_eta_seconds, pr.id AS pricing_rule_id,
             pr.version, pr.base_fare, pr.base_distance_m,
@@ -39,7 +39,7 @@ func (r *rideRepo) ListServiceTypes(ctx context.Context, cityCode string, now ti
 	return result, nil
 }
 
-func (r *rideRepo) FindCoupon(ctx context.Context, passengerID int64, couponID string, originalCents int64) (*biz.Coupon, error) {
+func (r *rideRepo) FindCoupon(ctx context.Context, passengerID int64, couponID string, originalCents int64) (*biz.QuoteCoupon, error) {
 	couponPK, err := parsePublicID(couponID)
 	if err != nil {
 		return nil, biz.ErrNotFound
@@ -54,7 +54,7 @@ func (r *rideRepo) FindCoupon(ctx context.Context, passengerID int64, couponID s
 		MaxDiscountAmount cents
 		ValidTo           time.Time
 	}
-	err = r.data.db.WithContext(ctx).Table("passenger_coupons AS pc").
+	err = r.data.gormDB.WithContext(ctx).Table("passenger_coupons AS pc").
 		Select(`pc.id AS passenger_coupon_id, c.id AS coupon_id, c.coupon_name AS name,
 			c.coupon_type, c.discount_amount, c.discount_rate,
 			0 AS max_discount_amount,
@@ -77,7 +77,7 @@ func (r *rideRepo) FindCoupon(ctx context.Context, passengerID int64, couponID s
 			discount = min(discount, int64(row.MaxDiscountAmount))
 		}
 	}
-	return &biz.Coupon{
+	return &biz.QuoteCoupon{
 		ID: row.CouponID, Name: row.Name, DiscountCents: discount,
 		ValidUntil: row.ValidTo, PassengerCoupon: row.PassengerCouponID,
 	}, nil
@@ -87,7 +87,7 @@ func (r *rideRepo) FindCoupon(ctx context.Context, passengerID int64, couponID s
 // 区域内没有可用站点时返回 ErrNotFound，避免跨区下单。
 func (r *rideRepo) ResolveServiceArea(ctx context.Context, cityCode string, origin, destination biz.Place) (int64, error) {
 	var serviceArea struct{ ID int64 }
-	err := r.data.db.WithContext(ctx).Table("stations AS origin").
+	err := r.data.gormDB.WithContext(ctx).Table("stations AS origin").
 		Select("origin.service_area_id AS id").
 		Joins("JOIN stations destination ON destination.service_area_id = origin.service_area_id").
 		Joins("JOIN service_areas area ON area.id = origin.service_area_id AND area.status = 1").
@@ -97,7 +97,7 @@ func (r *rideRepo) ResolveServiceArea(ctx context.Context, cityCode string, orig
 			origin.PlaceID, origin.PlaceID, destination.PlaceID, destination.PlaceID).
 		Take(&serviceArea).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		err = r.data.db.WithContext(ctx).Table("service_areas").
+		err = r.data.gormDB.WithContext(ctx).Table("service_areas").
 			Select("id").Where("city_code = ? AND status = 1", cityCode).
 			Order("id").Take(&serviceArea).Error
 	}
@@ -125,10 +125,10 @@ func (r *rideRepo) CountAvailableVehicles(ctx context.Context, serviceAreaID, se
 			WHERE o.vehicle_id = v.id AND o.status BETWEEN 0 AND 4
 		  )`
 	var count int64
-	err := r.data.db.WithContext(ctx).Raw(query, serviceAreaID).Scan(&count).Error
+	err := r.data.gormDB.WithContext(ctx).Raw(query, serviceAreaID).Scan(&count).Error
 	if err != nil {
 		if isOptionalRelationError(err) {
-			fallback := r.data.db.WithContext(ctx).Table("vehicles").Where("service_area_id = ?", serviceAreaID)
+			fallback := r.data.gormDB.WithContext(ctx).Table("vehicles").Where("service_area_id = ?", serviceAreaID)
 			if fallbackErr := fallback.Count(&count).Error; fallbackErr != nil {
 				return 0, nil
 			}
@@ -144,7 +144,7 @@ func (r *rideRepo) CreateQuote(ctx context.Context, quote *biz.Quote) error {
 		return biz.ErrInvalidArgument
 	}
 	row := quoteToRow(quote)
-	return r.data.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return r.data.gormDB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(row).Error; err != nil {
 			return err
 		}
@@ -183,7 +183,7 @@ type quoteOptionDetail struct {
 
 func (r *rideRepo) GetQuote(ctx context.Context, token string) (*biz.Quote, error) {
 	var row quoteRow
-	err := r.data.db.WithContext(ctx).
+	err := r.data.gormDB.WithContext(ctx).
 		Where("quote_token = ? AND expires_at > CURRENT_TIMESTAMP", token).First(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, biz.ErrNotFound
@@ -192,7 +192,7 @@ func (r *rideRepo) GetQuote(ctx context.Context, token string) (*biz.Quote, erro
 		return nil, err
 	}
 	var options []quoteOptionDetail
-	err = r.data.db.WithContext(ctx).Table("fare_quote_options AS fqo").
+	err = r.data.gormDB.WithContext(ctx).Table("fare_quote_options AS fqo").
 		Select(`fqo.service_type_id, vst.service_type_code AS code,
             vst.display_name, vst.tags, vst.seat_count,
             fqo.pickup_eta_seconds AS eta, fqo.original_amount AS original,
@@ -210,7 +210,7 @@ func (r *rideRepo) GetQuote(ctx context.Context, token string) (*biz.Quote, erro
 func hydrateQuote(row quoteRow, options []quoteOptionDetail) *biz.Quote {
 	quote := quoteFromRow(row)
 	if row.PassengerCouponID != nil {
-		quote.Coupon = &biz.Coupon{PassengerCoupon: *row.PassengerCouponID}
+		quote.Coupon = &biz.QuoteCoupon{PassengerCoupon: *row.PassengerCouponID}
 	}
 	for _, option := range options {
 		quote.Options = append(quote.Options, biz.QuoteOption{

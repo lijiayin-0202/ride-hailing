@@ -9,9 +9,8 @@ import (
 )
 
 var (
-	ErrInvalidArgument = errors.New("invalid argument")
-	ErrNotFound        = errors.New("resource not found")
-	ErrConflict        = errors.New("business conflict")
+	ErrNotFound = errors.New("resource not found")
+	ErrConflict = errors.New("business conflict")
 )
 
 // OrderStatus 与《萝卜快跑开发任务》4.3 的订单状态机一致：
@@ -62,7 +61,7 @@ type Fare struct {
 	PaymentStatus string
 }
 
-type Coupon struct {
+type QuoteCoupon struct {
 	ID              int64
 	Name            string
 	DiscountCents   int64
@@ -107,12 +106,12 @@ type Quote struct {
 	DistanceMeters           int32
 	EstimatedDurationSeconds int32
 	Polyline                 string
-	Coupon                   *Coupon
+	Coupon                   *QuoteCoupon
 	Options                  []QuoteOption
 	ExpiresAt                time.Time
 }
 
-type Vehicle struct {
+type RideVehicle struct {
 	ID              int64
 	PlateNo         string
 	Model           string
@@ -126,7 +125,7 @@ type Order struct {
 	OrderNo                  string
 	PassengerID              int64
 	ServiceAreaID            int64
-	Vehicle                  *Vehicle
+	Vehicle                  *RideVehicle
 	Status                   OrderStatus
 	ServiceType              ServiceType
 	Origin                   Place
@@ -351,7 +350,7 @@ type AdminOrderPage struct {
 }
 
 // Passenger 后台视角的乘客档案。
-type Passenger struct {
+type AdminPassenger struct {
 	ID               int64
 	PassengerNo      string
 	Mobile           string
@@ -375,7 +374,7 @@ type AdminPassengerFilter struct {
 }
 
 type AdminPassengerPage struct {
-	Items []*Passenger
+	Items []*AdminPassenger
 	Total int64
 }
 
@@ -447,7 +446,7 @@ type RideRepo interface {
 	ResolveServiceArea(ctx context.Context, cityCode string, origin, destination Place) (int64, error)
 	ListServiceTypes(ctx context.Context, cityCode string, now time.Time) ([]ServiceType, error)
 	CountAvailableVehicles(ctx context.Context, serviceAreaID, serviceTypeID int64) (int32, error)
-	FindCoupon(ctx context.Context, passengerID int64, couponID string, originalCents int64) (*Coupon, error)
+	FindCoupon(ctx context.Context, passengerID int64, couponID string, originalCents int64) (*QuoteCoupon, error)
 	CreateQuote(ctx context.Context, quote *Quote) error
 	GetQuote(ctx context.Context, token string) (*Quote, error)
 	CreateOrder(ctx context.Context, order *Order) (*Order, bool, error)
@@ -456,12 +455,12 @@ type RideRepo interface {
 	GetOrderAny(ctx context.Context, orderID int64) (*Order, error)
 	ListOrdersForAdmin(ctx context.Context, filter AdminOrderFilter) (*AdminOrderPage, error)
 	ListPassengersForAdmin(ctx context.Context, filter AdminPassengerFilter) (*AdminPassengerPage, error)
-	GetPassengerAny(ctx context.Context, passengerID int64) (*Passenger, error)
+	GetPassengerAny(ctx context.Context, passengerID int64) (*AdminPassenger, error)
 	ListVehiclesForAdmin(ctx context.Context, filter AdminVehicleFilter) (*AdminVehiclePage, error)
 	GetVehicleAny(ctx context.Context, vehicleID int64) (*AdminVehicle, error)
 	ListDispatchRecordsForAdmin(ctx context.Context, filter AdminDispatchRecordFilter) (*AdminDispatchRecordPage, error)
-	GetVehicle(ctx context.Context, vehicleID int64) (*Vehicle, error)
-	PickAvailableVehicle(ctx context.Context, serviceAreaID int64) (*Vehicle, error)
+	GetVehicle(ctx context.Context, vehicleID int64) (*RideVehicle, error)
+	PickAvailableVehicle(ctx context.Context, serviceAreaID int64) (*RideVehicle, error)
 	GetLiveView(ctx context.Context, passengerID, orderID int64) (*OrderLiveView, error)
 	GetSettlement(ctx context.Context, passengerID, orderID int64) (*Settlement, error)
 	ExecuteCommand(ctx context.Context, command *OrderCommand) (*OrderCommand, error)
