@@ -7,9 +7,11 @@
 package v1
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
+	sync "sync"
 	unsafe "unsafe"
 )
 
@@ -20,19 +22,3471 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type Place struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PlaceId       string                 `protobuf:"bytes,1,opt,name=place_id,json=placeId,proto3" json:"place_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Address       string                 `protobuf:"bytes,3,opt,name=address,proto3" json:"address,omitempty"`
+	Longitude     float64                `protobuf:"fixed64,4,opt,name=longitude,proto3" json:"longitude,omitempty"`
+	Latitude      float64                `protobuf:"fixed64,5,opt,name=latitude,proto3" json:"latitude,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Place) Reset() {
+	*x = Place{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Place) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Place) ProtoMessage() {}
+
+func (x *Place) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Place.ProtoReflect.Descriptor instead.
+func (*Place) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *Place) GetPlaceId() string {
+	if x != nil {
+		return x.PlaceId
+	}
+	return ""
+}
+
+func (x *Place) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Place) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *Place) GetLongitude() float64 {
+	if x != nil {
+		return x.Longitude
+	}
+	return 0
+}
+
+func (x *Place) GetLatitude() float64 {
+	if x != nil {
+		return x.Latitude
+	}
+	return 0
+}
+
+type RouteSummary struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	OriginName               string                 `protobuf:"bytes,1,opt,name=origin_name,json=originName,proto3" json:"origin_name,omitempty"`
+	DestinationName          string                 `protobuf:"bytes,2,opt,name=destination_name,json=destinationName,proto3" json:"destination_name,omitempty"`
+	DistanceMeters           int32                  `protobuf:"varint,3,opt,name=distance_meters,json=distanceMeters,proto3" json:"distance_meters,omitempty"`
+	EstimatedDurationSeconds int32                  `protobuf:"varint,4,opt,name=estimated_duration_seconds,json=estimatedDurationSeconds,proto3" json:"estimated_duration_seconds,omitempty"`
+	Polyline                 string                 `protobuf:"bytes,5,opt,name=polyline,proto3" json:"polyline,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *RouteSummary) Reset() {
+	*x = RouteSummary{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RouteSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RouteSummary) ProtoMessage() {}
+
+func (x *RouteSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RouteSummary.ProtoReflect.Descriptor instead.
+func (*RouteSummary) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RouteSummary) GetOriginName() string {
+	if x != nil {
+		return x.OriginName
+	}
+	return ""
+}
+
+func (x *RouteSummary) GetDestinationName() string {
+	if x != nil {
+		return x.DestinationName
+	}
+	return ""
+}
+
+func (x *RouteSummary) GetDistanceMeters() int32 {
+	if x != nil {
+		return x.DistanceMeters
+	}
+	return 0
+}
+
+func (x *RouteSummary) GetEstimatedDurationSeconds() int32 {
+	if x != nil {
+		return x.EstimatedDurationSeconds
+	}
+	return 0
+}
+
+func (x *RouteSummary) GetPolyline() string {
+	if x != nil {
+		return x.Polyline
+	}
+	return ""
+}
+
+type FareItem struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Amount        float64                `protobuf:"fixed64,3,opt,name=amount,proto3" json:"amount,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FareItem) Reset() {
+	*x = FareItem{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FareItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FareItem) ProtoMessage() {}
+
+func (x *FareItem) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FareItem.ProtoReflect.Descriptor instead.
+func (*FareItem) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *FareItem) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *FareItem) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *FareItem) GetAmount() float64 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+type Fare struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	OriginalAmount float64                `protobuf:"fixed64,1,opt,name=original_amount,json=originalAmount,proto3" json:"original_amount,omitempty"`
+	DiscountAmount float64                `protobuf:"fixed64,2,opt,name=discount_amount,json=discountAmount,proto3" json:"discount_amount,omitempty"`
+	PayableAmount  float64                `protobuf:"fixed64,3,opt,name=payable_amount,json=payableAmount,proto3" json:"payable_amount,omitempty"`
+	Currency       string                 `protobuf:"bytes,4,opt,name=currency,proto3" json:"currency,omitempty"`
+	Breakdown      []*FareItem            `protobuf:"bytes,5,rep,name=breakdown,proto3" json:"breakdown,omitempty"`
+	PaymentStatus  string                 `protobuf:"bytes,6,opt,name=payment_status,json=paymentStatus,proto3" json:"payment_status,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *Fare) Reset() {
+	*x = Fare{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Fare) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Fare) ProtoMessage() {}
+
+func (x *Fare) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Fare.ProtoReflect.Descriptor instead.
+func (*Fare) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Fare) GetOriginalAmount() float64 {
+	if x != nil {
+		return x.OriginalAmount
+	}
+	return 0
+}
+
+func (x *Fare) GetDiscountAmount() float64 {
+	if x != nil {
+		return x.DiscountAmount
+	}
+	return 0
+}
+
+func (x *Fare) GetPayableAmount() float64 {
+	if x != nil {
+		return x.PayableAmount
+	}
+	return 0
+}
+
+func (x *Fare) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+func (x *Fare) GetBreakdown() []*FareItem {
+	if x != nil {
+		return x.Breakdown
+	}
+	return nil
+}
+
+func (x *Fare) GetPaymentStatus() string {
+	if x != nil {
+		return x.PaymentStatus
+	}
+	return ""
+}
+
+type AppliedCoupon struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	CouponId       string                 `protobuf:"bytes,1,opt,name=coupon_id,json=couponId,proto3" json:"coupon_id,omitempty"`
+	CouponName     string                 `protobuf:"bytes,2,opt,name=coupon_name,json=couponName,proto3" json:"coupon_name,omitempty"`
+	DiscountAmount float64                `protobuf:"fixed64,3,opt,name=discount_amount,json=discountAmount,proto3" json:"discount_amount,omitempty"`
+	ValidUntil     string                 `protobuf:"bytes,4,opt,name=valid_until,json=validUntil,proto3" json:"valid_until,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *AppliedCoupon) Reset() {
+	*x = AppliedCoupon{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AppliedCoupon) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AppliedCoupon) ProtoMessage() {}
+
+func (x *AppliedCoupon) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AppliedCoupon.ProtoReflect.Descriptor instead.
+func (*AppliedCoupon) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *AppliedCoupon) GetCouponId() string {
+	if x != nil {
+		return x.CouponId
+	}
+	return ""
+}
+
+func (x *AppliedCoupon) GetCouponName() string {
+	if x != nil {
+		return x.CouponName
+	}
+	return ""
+}
+
+func (x *AppliedCoupon) GetDiscountAmount() float64 {
+	if x != nil {
+		return x.DiscountAmount
+	}
+	return 0
+}
+
+func (x *AppliedCoupon) GetValidUntil() string {
+	if x != nil {
+		return x.ValidUntil
+	}
+	return ""
+}
+
+type EstimateFareRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CityCode      string                 `protobuf:"bytes,1,opt,name=city_code,json=cityCode,proto3" json:"city_code,omitempty"`
+	RideMode      string                 `protobuf:"bytes,2,opt,name=ride_mode,json=rideMode,proto3" json:"ride_mode,omitempty"`
+	ScheduledAt   string                 `protobuf:"bytes,3,opt,name=scheduled_at,json=scheduledAt,proto3" json:"scheduled_at,omitempty"`
+	Origin        *Place                 `protobuf:"bytes,4,opt,name=origin,proto3" json:"origin,omitempty"`
+	Destination   *Place                 `protobuf:"bytes,5,opt,name=destination,proto3" json:"destination,omitempty"`
+	CouponId      string                 `protobuf:"bytes,6,opt,name=coupon_id,json=couponId,proto3" json:"coupon_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EstimateFareRequest) Reset() {
+	*x = EstimateFareRequest{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EstimateFareRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EstimateFareRequest) ProtoMessage() {}
+
+func (x *EstimateFareRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EstimateFareRequest.ProtoReflect.Descriptor instead.
+func (*EstimateFareRequest) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *EstimateFareRequest) GetCityCode() string {
+	if x != nil {
+		return x.CityCode
+	}
+	return ""
+}
+
+func (x *EstimateFareRequest) GetRideMode() string {
+	if x != nil {
+		return x.RideMode
+	}
+	return ""
+}
+
+func (x *EstimateFareRequest) GetScheduledAt() string {
+	if x != nil {
+		return x.ScheduledAt
+	}
+	return ""
+}
+
+func (x *EstimateFareRequest) GetOrigin() *Place {
+	if x != nil {
+		return x.Origin
+	}
+	return nil
+}
+
+func (x *EstimateFareRequest) GetDestination() *Place {
+	if x != nil {
+		return x.Destination
+	}
+	return nil
+}
+
+func (x *EstimateFareRequest) GetCouponId() string {
+	if x != nil {
+		return x.CouponId
+	}
+	return ""
+}
+
+type ServiceQuote struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	ServiceTypeId         string                 `protobuf:"bytes,1,opt,name=service_type_id,json=serviceTypeId,proto3" json:"service_type_id,omitempty"`
+	DisplayName           string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Tags                  []string               `protobuf:"bytes,3,rep,name=tags,proto3" json:"tags,omitempty"`
+	SeatCount             int32                  `protobuf:"varint,4,opt,name=seat_count,json=seatCount,proto3" json:"seat_count,omitempty"`
+	PickupEtaSeconds      int32                  `protobuf:"varint,5,opt,name=pickup_eta_seconds,json=pickupEtaSeconds,proto3" json:"pickup_eta_seconds,omitempty"`
+	Fare                  *Fare                  `protobuf:"bytes,6,opt,name=fare,proto3" json:"fare,omitempty"`
+	AvailableVehicleCount int32                  `protobuf:"varint,7,opt,name=available_vehicle_count,json=availableVehicleCount,proto3" json:"available_vehicle_count,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *ServiceQuote) Reset() {
+	*x = ServiceQuote{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServiceQuote) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServiceQuote) ProtoMessage() {}
+
+func (x *ServiceQuote) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServiceQuote.ProtoReflect.Descriptor instead.
+func (*ServiceQuote) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ServiceQuote) GetServiceTypeId() string {
+	if x != nil {
+		return x.ServiceTypeId
+	}
+	return ""
+}
+
+func (x *ServiceQuote) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *ServiceQuote) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *ServiceQuote) GetSeatCount() int32 {
+	if x != nil {
+		return x.SeatCount
+	}
+	return 0
+}
+
+func (x *ServiceQuote) GetPickupEtaSeconds() int32 {
+	if x != nil {
+		return x.PickupEtaSeconds
+	}
+	return 0
+}
+
+func (x *ServiceQuote) GetFare() *Fare {
+	if x != nil {
+		return x.Fare
+	}
+	return nil
+}
+
+func (x *ServiceQuote) GetAvailableVehicleCount() int32 {
+	if x != nil {
+		return x.AvailableVehicleCount
+	}
+	return 0
+}
+
+type EstimateFareReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	QuoteToken    string                 `protobuf:"bytes,1,opt,name=quote_token,json=quoteToken,proto3" json:"quote_token,omitempty"`
+	ExpiresAt     string                 `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	Route         *RouteSummary          `protobuf:"bytes,3,opt,name=route,proto3" json:"route,omitempty"`
+	Quotes        []*ServiceQuote        `protobuf:"bytes,4,rep,name=quotes,proto3" json:"quotes,omitempty"`
+	AppliedCoupon *AppliedCoupon         `protobuf:"bytes,5,opt,name=applied_coupon,json=appliedCoupon,proto3" json:"applied_coupon,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EstimateFareReply) Reset() {
+	*x = EstimateFareReply{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EstimateFareReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EstimateFareReply) ProtoMessage() {}
+
+func (x *EstimateFareReply) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EstimateFareReply.ProtoReflect.Descriptor instead.
+func (*EstimateFareReply) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *EstimateFareReply) GetQuoteToken() string {
+	if x != nil {
+		return x.QuoteToken
+	}
+	return ""
+}
+
+func (x *EstimateFareReply) GetExpiresAt() string {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return ""
+}
+
+func (x *EstimateFareReply) GetRoute() *RouteSummary {
+	if x != nil {
+		return x.Route
+	}
+	return nil
+}
+
+func (x *EstimateFareReply) GetQuotes() []*ServiceQuote {
+	if x != nil {
+		return x.Quotes
+	}
+	return nil
+}
+
+func (x *EstimateFareReply) GetAppliedCoupon() *AppliedCoupon {
+	if x != nil {
+		return x.AppliedCoupon
+	}
+	return nil
+}
+
+type CreateOrderRequest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	QuoteToken           string                 `protobuf:"bytes,1,opt,name=quote_token,json=quoteToken,proto3" json:"quote_token,omitempty"`
+	ServiceTypeId        string                 `protobuf:"bytes,2,opt,name=service_type_id,json=serviceTypeId,proto3" json:"service_type_id,omitempty"`
+	PassengerCount       int32                  `protobuf:"varint,3,opt,name=passenger_count,json=passengerCount,proto3" json:"passenger_count,omitempty"`
+	ContactPhone         string                 `protobuf:"bytes,4,opt,name=contact_phone,json=contactPhone,proto3" json:"contact_phone,omitempty"`
+	UserAgreementVersion string                 `protobuf:"bytes,5,opt,name=user_agreement_version,json=userAgreementVersion,proto3" json:"user_agreement_version,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *CreateOrderRequest) Reset() {
+	*x = CreateOrderRequest{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateOrderRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateOrderRequest) ProtoMessage() {}
+
+func (x *CreateOrderRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateOrderRequest.ProtoReflect.Descriptor instead.
+func (*CreateOrderRequest) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *CreateOrderRequest) GetQuoteToken() string {
+	if x != nil {
+		return x.QuoteToken
+	}
+	return ""
+}
+
+func (x *CreateOrderRequest) GetServiceTypeId() string {
+	if x != nil {
+		return x.ServiceTypeId
+	}
+	return ""
+}
+
+func (x *CreateOrderRequest) GetPassengerCount() int32 {
+	if x != nil {
+		return x.PassengerCount
+	}
+	return 0
+}
+
+func (x *CreateOrderRequest) GetContactPhone() string {
+	if x != nil {
+		return x.ContactPhone
+	}
+	return ""
+}
+
+func (x *CreateOrderRequest) GetUserAgreementVersion() string {
+	if x != nil {
+		return x.UserAgreementVersion
+	}
+	return ""
+}
+
+type MatchingInfo struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	ScannedVehicleCount   int32                  `protobuf:"varint,1,opt,name=scanned_vehicle_count,json=scannedVehicleCount,proto3" json:"scanned_vehicle_count,omitempty"`
+	EstimatedMatchSeconds int32                  `protobuf:"varint,2,opt,name=estimated_match_seconds,json=estimatedMatchSeconds,proto3" json:"estimated_match_seconds,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *MatchingInfo) Reset() {
+	*x = MatchingInfo{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MatchingInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MatchingInfo) ProtoMessage() {}
+
+func (x *MatchingInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MatchingInfo.ProtoReflect.Descriptor instead.
+func (*MatchingInfo) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *MatchingInfo) GetScannedVehicleCount() int32 {
+	if x != nil {
+		return x.ScannedVehicleCount
+	}
+	return 0
+}
+
+func (x *MatchingInfo) GetEstimatedMatchSeconds() int32 {
+	if x != nil {
+		return x.EstimatedMatchSeconds
+	}
+	return 0
+}
+
+type CreateOrderReply struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	OrderId        string                 `protobuf:"bytes,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	OrderNo        string                 `protobuf:"bytes,2,opt,name=order_no,json=orderNo,proto3" json:"order_no,omitempty"`
+	Status         string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Matching       *MatchingInfo          `protobuf:"bytes,4,opt,name=matching,proto3" json:"matching,omitempty"`
+	RouteSummary   *RouteSummary          `protobuf:"bytes,5,opt,name=route_summary,json=routeSummary,proto3" json:"route_summary,omitempty"`
+	EstimatedFare  *Fare                  `protobuf:"bytes,6,opt,name=estimated_fare,json=estimatedFare,proto3" json:"estimated_fare,omitempty"`
+	EventStreamUrl string                 `protobuf:"bytes,7,opt,name=event_stream_url,json=eventStreamUrl,proto3" json:"event_stream_url,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CreateOrderReply) Reset() {
+	*x = CreateOrderReply{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateOrderReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateOrderReply) ProtoMessage() {}
+
+func (x *CreateOrderReply) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateOrderReply.ProtoReflect.Descriptor instead.
+func (*CreateOrderReply) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *CreateOrderReply) GetOrderId() string {
+	if x != nil {
+		return x.OrderId
+	}
+	return ""
+}
+
+func (x *CreateOrderReply) GetOrderNo() string {
+	if x != nil {
+		return x.OrderNo
+	}
+	return ""
+}
+
+func (x *CreateOrderReply) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *CreateOrderReply) GetMatching() *MatchingInfo {
+	if x != nil {
+		return x.Matching
+	}
+	return nil
+}
+
+func (x *CreateOrderReply) GetRouteSummary() *RouteSummary {
+	if x != nil {
+		return x.RouteSummary
+	}
+	return nil
+}
+
+func (x *CreateOrderReply) GetEstimatedFare() *Fare {
+	if x != nil {
+		return x.EstimatedFare
+	}
+	return nil
+}
+
+func (x *CreateOrderReply) GetEventStreamUrl() string {
+	if x != nil {
+		return x.EventStreamUrl
+	}
+	return ""
+}
+
+type GetOrderRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderId       string                 `protobuf:"bytes,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetOrderRequest) Reset() {
+	*x = GetOrderRequest{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetOrderRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOrderRequest) ProtoMessage() {}
+
+func (x *GetOrderRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOrderRequest.ProtoReflect.Descriptor instead.
+func (*GetOrderRequest) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetOrderRequest) GetOrderId() string {
+	if x != nil {
+		return x.OrderId
+	}
+	return ""
+}
+
+type VehicleInfo struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	VehicleId       string                 `protobuf:"bytes,1,opt,name=vehicle_id,json=vehicleId,proto3" json:"vehicle_id,omitempty"`
+	PlateNo         string                 `protobuf:"bytes,2,opt,name=plate_no,json=plateNo,proto3" json:"plate_no,omitempty"`
+	Model           string                 `protobuf:"bytes,3,opt,name=model,proto3" json:"model,omitempty"`
+	ServiceTypeName string                 `protobuf:"bytes,4,opt,name=service_type_name,json=serviceTypeName,proto3" json:"service_type_name,omitempty"`
+	BodyNo          string                 `protobuf:"bytes,5,opt,name=body_no,json=bodyNo,proto3" json:"body_no,omitempty"`
+	Color           string                 `protobuf:"bytes,6,opt,name=color,proto3" json:"color,omitempty"`
+	BatteryPercent  int32                  `protobuf:"varint,7,opt,name=battery_percent,json=batteryPercent,proto3" json:"battery_percent,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *VehicleInfo) Reset() {
+	*x = VehicleInfo{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VehicleInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VehicleInfo) ProtoMessage() {}
+
+func (x *VehicleInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VehicleInfo.ProtoReflect.Descriptor instead.
+func (*VehicleInfo) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *VehicleInfo) GetVehicleId() string {
+	if x != nil {
+		return x.VehicleId
+	}
+	return ""
+}
+
+func (x *VehicleInfo) GetPlateNo() string {
+	if x != nil {
+		return x.PlateNo
+	}
+	return ""
+}
+
+func (x *VehicleInfo) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *VehicleInfo) GetServiceTypeName() string {
+	if x != nil {
+		return x.ServiceTypeName
+	}
+	return ""
+}
+
+func (x *VehicleInfo) GetBodyNo() string {
+	if x != nil {
+		return x.BodyNo
+	}
+	return ""
+}
+
+func (x *VehicleInfo) GetColor() string {
+	if x != nil {
+		return x.Color
+	}
+	return ""
+}
+
+func (x *VehicleInfo) GetBatteryPercent() int32 {
+	if x != nil {
+		return x.BatteryPercent
+	}
+	return 0
+}
+
+type PickupInfo struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	EtaSeconds         int32                  `protobuf:"varint,1,opt,name=eta_seconds,json=etaSeconds,proto3" json:"eta_seconds,omitempty"`
+	ArrivedAt          string                 `protobuf:"bytes,2,opt,name=arrived_at,json=arrivedAt,proto3" json:"arrived_at,omitempty"`
+	WaitDeadline       string                 `protobuf:"bytes,3,opt,name=wait_deadline,json=waitDeadline,proto3" json:"wait_deadline,omitempty"`
+	BoardingCodeSuffix string                 `protobuf:"bytes,4,opt,name=boarding_code_suffix,json=boardingCodeSuffix,proto3" json:"boarding_code_suffix,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *PickupInfo) Reset() {
+	*x = PickupInfo{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PickupInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PickupInfo) ProtoMessage() {}
+
+func (x *PickupInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PickupInfo.ProtoReflect.Descriptor instead.
+func (*PickupInfo) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *PickupInfo) GetEtaSeconds() int32 {
+	if x != nil {
+		return x.EtaSeconds
+	}
+	return 0
+}
+
+func (x *PickupInfo) GetArrivedAt() string {
+	if x != nil {
+		return x.ArrivedAt
+	}
+	return ""
+}
+
+func (x *PickupInfo) GetWaitDeadline() string {
+	if x != nil {
+		return x.WaitDeadline
+	}
+	return ""
+}
+
+func (x *PickupInfo) GetBoardingCodeSuffix() string {
+	if x != nil {
+		return x.BoardingCodeSuffix
+	}
+	return ""
+}
+
+type TripProgress struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	RemainingDistanceMeters  int32                  `protobuf:"varint,1,opt,name=remaining_distance_meters,json=remainingDistanceMeters,proto3" json:"remaining_distance_meters,omitempty"`
+	RemainingDurationSeconds int32                  `protobuf:"varint,2,opt,name=remaining_duration_seconds,json=remainingDurationSeconds,proto3" json:"remaining_duration_seconds,omitempty"`
+	SpeedKmh                 float64                `protobuf:"fixed64,3,opt,name=speed_kmh,json=speedKmh,proto3" json:"speed_kmh,omitempty"`
+	ProgressPercent          int32                  `protobuf:"varint,4,opt,name=progress_percent,json=progressPercent,proto3" json:"progress_percent,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *TripProgress) Reset() {
+	*x = TripProgress{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TripProgress) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TripProgress) ProtoMessage() {}
+
+func (x *TripProgress) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TripProgress.ProtoReflect.Descriptor instead.
+func (*TripProgress) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *TripProgress) GetRemainingDistanceMeters() int32 {
+	if x != nil {
+		return x.RemainingDistanceMeters
+	}
+	return 0
+}
+
+func (x *TripProgress) GetRemainingDurationSeconds() int32 {
+	if x != nil {
+		return x.RemainingDurationSeconds
+	}
+	return 0
+}
+
+func (x *TripProgress) GetSpeedKmh() float64 {
+	if x != nil {
+		return x.SpeedKmh
+	}
+	return 0
+}
+
+func (x *TripProgress) GetProgressPercent() int32 {
+	if x != nil {
+		return x.ProgressPercent
+	}
+	return 0
+}
+
+type LatestLocation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Longitude     float64                `protobuf:"fixed64,1,opt,name=longitude,proto3" json:"longitude,omitempty"`
+	Latitude      float64                `protobuf:"fixed64,2,opt,name=latitude,proto3" json:"latitude,omitempty"`
+	SpeedKmh      float64                `protobuf:"fixed64,3,opt,name=speed_kmh,json=speedKmh,proto3" json:"speed_kmh,omitempty"`
+	ReportedAt    string                 `protobuf:"bytes,4,opt,name=reported_at,json=reportedAt,proto3" json:"reported_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LatestLocation) Reset() {
+	*x = LatestLocation{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LatestLocation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LatestLocation) ProtoMessage() {}
+
+func (x *LatestLocation) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LatestLocation.ProtoReflect.Descriptor instead.
+func (*LatestLocation) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *LatestLocation) GetLongitude() float64 {
+	if x != nil {
+		return x.Longitude
+	}
+	return 0
+}
+
+func (x *LatestLocation) GetLatitude() float64 {
+	if x != nil {
+		return x.Latitude
+	}
+	return 0
+}
+
+func (x *LatestLocation) GetSpeedKmh() float64 {
+	if x != nil {
+		return x.SpeedKmh
+	}
+	return 0
+}
+
+func (x *LatestLocation) GetReportedAt() string {
+	if x != nil {
+		return x.ReportedAt
+	}
+	return ""
+}
+
+type DispatchSummary struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Strategy             string                 `protobuf:"bytes,1,opt,name=strategy,proto3" json:"strategy,omitempty"`
+	StrategyVersion      string                 `protobuf:"bytes,2,opt,name=strategy_version,json=strategyVersion,proto3" json:"strategy_version,omitempty"`
+	DispatchStatus       string                 `protobuf:"bytes,3,opt,name=dispatch_status,json=dispatchStatus,proto3" json:"dispatch_status,omitempty"`
+	VehicleResponse      string                 `protobuf:"bytes,4,opt,name=vehicle_response,json=vehicleResponse,proto3" json:"vehicle_response,omitempty"`
+	AttemptCount         int32                  `protobuf:"varint,5,opt,name=attempt_count,json=attemptCount,proto3" json:"attempt_count,omitempty"`
+	PickupEtaSeconds     int32                  `protobuf:"varint,6,opt,name=pickup_eta_seconds,json=pickupEtaSeconds,proto3" json:"pickup_eta_seconds,omitempty"`
+	PickupDistanceMeters float64                `protobuf:"fixed64,7,opt,name=pickup_distance_meters,json=pickupDistanceMeters,proto3" json:"pickup_distance_meters,omitempty"`
+	DispatchedAt         string                 `protobuf:"bytes,8,opt,name=dispatched_at,json=dispatchedAt,proto3" json:"dispatched_at,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *DispatchSummary) Reset() {
+	*x = DispatchSummary{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DispatchSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DispatchSummary) ProtoMessage() {}
+
+func (x *DispatchSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DispatchSummary.ProtoReflect.Descriptor instead.
+func (*DispatchSummary) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *DispatchSummary) GetStrategy() string {
+	if x != nil {
+		return x.Strategy
+	}
+	return ""
+}
+
+func (x *DispatchSummary) GetStrategyVersion() string {
+	if x != nil {
+		return x.StrategyVersion
+	}
+	return ""
+}
+
+func (x *DispatchSummary) GetDispatchStatus() string {
+	if x != nil {
+		return x.DispatchStatus
+	}
+	return ""
+}
+
+func (x *DispatchSummary) GetVehicleResponse() string {
+	if x != nil {
+		return x.VehicleResponse
+	}
+	return ""
+}
+
+func (x *DispatchSummary) GetAttemptCount() int32 {
+	if x != nil {
+		return x.AttemptCount
+	}
+	return 0
+}
+
+func (x *DispatchSummary) GetPickupEtaSeconds() int32 {
+	if x != nil {
+		return x.PickupEtaSeconds
+	}
+	return 0
+}
+
+func (x *DispatchSummary) GetPickupDistanceMeters() float64 {
+	if x != nil {
+		return x.PickupDistanceMeters
+	}
+	return 0
+}
+
+func (x *DispatchSummary) GetDispatchedAt() string {
+	if x != nil {
+		return x.DispatchedAt
+	}
+	return ""
+}
+
+type BoardingVerification struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Method        string                 `protobuf:"bytes,1,opt,name=method,proto3" json:"method,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	VerifiedAt    string                 `protobuf:"bytes,3,opt,name=verified_at,json=verifiedAt,proto3" json:"verified_at,omitempty"`
+	Attempts      int32                  `protobuf:"varint,4,opt,name=attempts,proto3" json:"attempts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BoardingVerification) Reset() {
+	*x = BoardingVerification{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BoardingVerification) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BoardingVerification) ProtoMessage() {}
+
+func (x *BoardingVerification) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BoardingVerification.ProtoReflect.Descriptor instead.
+func (*BoardingVerification) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *BoardingVerification) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *BoardingVerification) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *BoardingVerification) GetVerifiedAt() string {
+	if x != nil {
+		return x.VerifiedAt
+	}
+	return ""
+}
+
+func (x *BoardingVerification) GetAttempts() int32 {
+	if x != nil {
+		return x.Attempts
+	}
+	return 0
+}
+
+type SafetyEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Level         string                 `protobuf:"bytes,3,opt,name=level,proto3" json:"level,omitempty"`
+	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	OccurredAt    string                 `protobuf:"bytes,6,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SafetyEvent) Reset() {
+	*x = SafetyEvent{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SafetyEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SafetyEvent) ProtoMessage() {}
+
+func (x *SafetyEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SafetyEvent.ProtoReflect.Descriptor instead.
+func (*SafetyEvent) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *SafetyEvent) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *SafetyEvent) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *SafetyEvent) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
+}
+
+func (x *SafetyEvent) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *SafetyEvent) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *SafetyEvent) GetOccurredAt() string {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return ""
+}
+
+// 活动订单聚合详情：订单 + 车辆 + 最新位置 + 派单 + 上车核验 + 安全事件摘要。
+type OrderLiveViewReply struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	OrderId          string                 `protobuf:"bytes,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	OrderNo          string                 `protobuf:"bytes,2,opt,name=order_no,json=orderNo,proto3" json:"order_no,omitempty"`
+	Status           string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	StatusText       string                 `protobuf:"bytes,4,opt,name=status_text,json=statusText,proto3" json:"status_text,omitempty"`
+	Step             int32                  `protobuf:"varint,5,opt,name=step,proto3" json:"step,omitempty"`
+	Vehicle          *VehicleInfo           `protobuf:"bytes,6,opt,name=vehicle,proto3" json:"vehicle,omitempty"`
+	Pickup           *PickupInfo            `protobuf:"bytes,7,opt,name=pickup,proto3" json:"pickup,omitempty"`
+	Route            *RouteSummary          `protobuf:"bytes,8,opt,name=route,proto3" json:"route,omitempty"`
+	TripProgress     *TripProgress          `protobuf:"bytes,9,opt,name=trip_progress,json=tripProgress,proto3" json:"trip_progress,omitempty"`
+	Fare             *Fare                  `protobuf:"bytes,10,opt,name=fare,proto3" json:"fare,omitempty"`
+	AvailableActions []string               `protobuf:"bytes,11,rep,name=available_actions,json=availableActions,proto3" json:"available_actions,omitempty"`
+	LastEventId      string                 `protobuf:"bytes,12,opt,name=last_event_id,json=lastEventId,proto3" json:"last_event_id,omitempty"`
+	Location         *LatestLocation        `protobuf:"bytes,13,opt,name=location,proto3" json:"location,omitempty"`
+	Dispatch         *DispatchSummary       `protobuf:"bytes,14,opt,name=dispatch,proto3" json:"dispatch,omitempty"`
+	Boarding         *BoardingVerification  `protobuf:"bytes,15,opt,name=boarding,proto3" json:"boarding,omitempty"`
+	SafetyEvents     []*SafetyEvent         `protobuf:"bytes,16,rep,name=safety_events,json=safetyEvents,proto3" json:"safety_events,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *OrderLiveViewReply) Reset() {
+	*x = OrderLiveViewReply{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OrderLiveViewReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OrderLiveViewReply) ProtoMessage() {}
+
+func (x *OrderLiveViewReply) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OrderLiveViewReply.ProtoReflect.Descriptor instead.
+func (*OrderLiveViewReply) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *OrderLiveViewReply) GetOrderId() string {
+	if x != nil {
+		return x.OrderId
+	}
+	return ""
+}
+
+func (x *OrderLiveViewReply) GetOrderNo() string {
+	if x != nil {
+		return x.OrderNo
+	}
+	return ""
+}
+
+func (x *OrderLiveViewReply) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *OrderLiveViewReply) GetStatusText() string {
+	if x != nil {
+		return x.StatusText
+	}
+	return ""
+}
+
+func (x *OrderLiveViewReply) GetStep() int32 {
+	if x != nil {
+		return x.Step
+	}
+	return 0
+}
+
+func (x *OrderLiveViewReply) GetVehicle() *VehicleInfo {
+	if x != nil {
+		return x.Vehicle
+	}
+	return nil
+}
+
+func (x *OrderLiveViewReply) GetPickup() *PickupInfo {
+	if x != nil {
+		return x.Pickup
+	}
+	return nil
+}
+
+func (x *OrderLiveViewReply) GetRoute() *RouteSummary {
+	if x != nil {
+		return x.Route
+	}
+	return nil
+}
+
+func (x *OrderLiveViewReply) GetTripProgress() *TripProgress {
+	if x != nil {
+		return x.TripProgress
+	}
+	return nil
+}
+
+func (x *OrderLiveViewReply) GetFare() *Fare {
+	if x != nil {
+		return x.Fare
+	}
+	return nil
+}
+
+func (x *OrderLiveViewReply) GetAvailableActions() []string {
+	if x != nil {
+		return x.AvailableActions
+	}
+	return nil
+}
+
+func (x *OrderLiveViewReply) GetLastEventId() string {
+	if x != nil {
+		return x.LastEventId
+	}
+	return ""
+}
+
+func (x *OrderLiveViewReply) GetLocation() *LatestLocation {
+	if x != nil {
+		return x.Location
+	}
+	return nil
+}
+
+func (x *OrderLiveViewReply) GetDispatch() *DispatchSummary {
+	if x != nil {
+		return x.Dispatch
+	}
+	return nil
+}
+
+func (x *OrderLiveViewReply) GetBoarding() *BoardingVerification {
+	if x != nil {
+		return x.Boarding
+	}
+	return nil
+}
+
+func (x *OrderLiveViewReply) GetSafetyEvents() []*SafetyEvent {
+	if x != nil {
+		return x.SafetyEvents
+	}
+	return nil
+}
+
+type SettlementPayment struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PaymentId     string                 `protobuf:"bytes,1,opt,name=payment_id,json=paymentId,proto3" json:"payment_id,omitempty"`
+	PaymentNo     string                 `protobuf:"bytes,2,opt,name=payment_no,json=paymentNo,proto3" json:"payment_no,omitempty"`
+	Method        string                 `protobuf:"bytes,3,opt,name=method,proto3" json:"method,omitempty"`
+	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	Amount        float64                `protobuf:"fixed64,5,opt,name=amount,proto3" json:"amount,omitempty"`
+	PaidAt        string                 `protobuf:"bytes,6,opt,name=paid_at,json=paidAt,proto3" json:"paid_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SettlementPayment) Reset() {
+	*x = SettlementPayment{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SettlementPayment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SettlementPayment) ProtoMessage() {}
+
+func (x *SettlementPayment) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SettlementPayment.ProtoReflect.Descriptor instead.
+func (*SettlementPayment) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *SettlementPayment) GetPaymentId() string {
+	if x != nil {
+		return x.PaymentId
+	}
+	return ""
+}
+
+func (x *SettlementPayment) GetPaymentNo() string {
+	if x != nil {
+		return x.PaymentNo
+	}
+	return ""
+}
+
+func (x *SettlementPayment) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *SettlementPayment) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *SettlementPayment) GetAmount() float64 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+func (x *SettlementPayment) GetPaidAt() string {
+	if x != nil {
+		return x.PaidAt
+	}
+	return ""
+}
+
+type SettlementReview struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Submitted     bool                   `protobuf:"varint,1,opt,name=submitted,proto3" json:"submitted,omitempty"`
+	Rating        int32                  `protobuf:"varint,2,opt,name=rating,proto3" json:"rating,omitempty"`
+	Tags          []string               `protobuf:"bytes,3,rep,name=tags,proto3" json:"tags,omitempty"`
+	SubmittedAt   string                 `protobuf:"bytes,4,opt,name=submitted_at,json=submittedAt,proto3" json:"submitted_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SettlementReview) Reset() {
+	*x = SettlementReview{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SettlementReview) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SettlementReview) ProtoMessage() {}
+
+func (x *SettlementReview) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SettlementReview.ProtoReflect.Descriptor instead.
+func (*SettlementReview) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *SettlementReview) GetSubmitted() bool {
+	if x != nil {
+		return x.Submitted
+	}
+	return false
+}
+
+func (x *SettlementReview) GetRating() int32 {
+	if x != nil {
+		return x.Rating
+	}
+	return 0
+}
+
+func (x *SettlementReview) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *SettlementReview) GetSubmittedAt() string {
+	if x != nil {
+		return x.SubmittedAt
+	}
+	return ""
+}
+
+type SettlementReply struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	OrderId        string                 `protobuf:"bytes,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	OrderNo        string                 `protobuf:"bytes,2,opt,name=order_no,json=orderNo,proto3" json:"order_no,omitempty"`
+	Status         string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	StatusText     string                 `protobuf:"bytes,4,opt,name=status_text,json=statusText,proto3" json:"status_text,omitempty"`
+	PayableAmount  float64                `protobuf:"fixed64,5,opt,name=payable_amount,json=payableAmount,proto3" json:"payable_amount,omitempty"`
+	PaidAmount     float64                `protobuf:"fixed64,6,opt,name=paid_amount,json=paidAmount,proto3" json:"paid_amount,omitempty"`
+	RefundedAmount float64                `protobuf:"fixed64,7,opt,name=refunded_amount,json=refundedAmount,proto3" json:"refunded_amount,omitempty"`
+	Currency       string                 `protobuf:"bytes,8,opt,name=currency,proto3" json:"currency,omitempty"`
+	FeeItems       []*FareItem            `protobuf:"bytes,9,rep,name=fee_items,json=feeItems,proto3" json:"fee_items,omitempty"`
+	Payment        *SettlementPayment     `protobuf:"bytes,10,opt,name=payment,proto3" json:"payment,omitempty"`
+	Review         *SettlementReview      `protobuf:"bytes,11,opt,name=review,proto3" json:"review,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SettlementReply) Reset() {
+	*x = SettlementReply{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SettlementReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SettlementReply) ProtoMessage() {}
+
+func (x *SettlementReply) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SettlementReply.ProtoReflect.Descriptor instead.
+func (*SettlementReply) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *SettlementReply) GetOrderId() string {
+	if x != nil {
+		return x.OrderId
+	}
+	return ""
+}
+
+func (x *SettlementReply) GetOrderNo() string {
+	if x != nil {
+		return x.OrderNo
+	}
+	return ""
+}
+
+func (x *SettlementReply) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *SettlementReply) GetStatusText() string {
+	if x != nil {
+		return x.StatusText
+	}
+	return ""
+}
+
+func (x *SettlementReply) GetPayableAmount() float64 {
+	if x != nil {
+		return x.PayableAmount
+	}
+	return 0
+}
+
+func (x *SettlementReply) GetPaidAmount() float64 {
+	if x != nil {
+		return x.PaidAmount
+	}
+	return 0
+}
+
+func (x *SettlementReply) GetRefundedAmount() float64 {
+	if x != nil {
+		return x.RefundedAmount
+	}
+	return 0
+}
+
+func (x *SettlementReply) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+func (x *SettlementReply) GetFeeItems() []*FareItem {
+	if x != nil {
+		return x.FeeItems
+	}
+	return nil
+}
+
+func (x *SettlementReply) GetPayment() *SettlementPayment {
+	if x != nil {
+		return x.Payment
+	}
+	return nil
+}
+
+func (x *SettlementReply) GetReview() *SettlementReview {
+	if x != nil {
+		return x.Review
+	}
+	return nil
+}
+
+type CancelOrderRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderId       string                 `protobuf:"bytes,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	ReasonCode    string                 `protobuf:"bytes,2,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelOrderRequest) Reset() {
+	*x = CancelOrderRequest{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelOrderRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelOrderRequest) ProtoMessage() {}
+
+func (x *CancelOrderRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelOrderRequest.ProtoReflect.Descriptor instead.
+func (*CancelOrderRequest) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *CancelOrderRequest) GetOrderId() string {
+	if x != nil {
+		return x.OrderId
+	}
+	return ""
+}
+
+func (x *CancelOrderRequest) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+type CancelOrderReply struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	OrderId              string                 `protobuf:"bytes,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	OrderStatus          string                 `protobuf:"bytes,2,opt,name=order_status,json=orderStatus,proto3" json:"order_status,omitempty"`
+	StatusText           string                 `protobuf:"bytes,3,opt,name=status_text,json=statusText,proto3" json:"status_text,omitempty"`
+	CancelFeeAmount      float64                `protobuf:"fixed64,4,opt,name=cancel_fee_amount,json=cancelFeeAmount,proto3" json:"cancel_fee_amount,omitempty"`
+	CancelFeeRule        string                 `protobuf:"bytes,5,opt,name=cancel_fee_rule,json=cancelFeeRule,proto3" json:"cancel_fee_rule,omitempty"`
+	CancelFeeDescription string                 `protobuf:"bytes,6,opt,name=cancel_fee_description,json=cancelFeeDescription,proto3" json:"cancel_fee_description,omitempty"`
+	RefundAmount         float64                `protobuf:"fixed64,7,opt,name=refund_amount,json=refundAmount,proto3" json:"refund_amount,omitempty"`
+	Currency             string                 `protobuf:"bytes,8,opt,name=currency,proto3" json:"currency,omitempty"`
+	CancelledAt          string                 `protobuf:"bytes,9,opt,name=cancelled_at,json=cancelledAt,proto3" json:"cancelled_at,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *CancelOrderReply) Reset() {
+	*x = CancelOrderReply{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelOrderReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelOrderReply) ProtoMessage() {}
+
+func (x *CancelOrderReply) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelOrderReply.ProtoReflect.Descriptor instead.
+func (*CancelOrderReply) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *CancelOrderReply) GetOrderId() string {
+	if x != nil {
+		return x.OrderId
+	}
+	return ""
+}
+
+func (x *CancelOrderReply) GetOrderStatus() string {
+	if x != nil {
+		return x.OrderStatus
+	}
+	return ""
+}
+
+func (x *CancelOrderReply) GetStatusText() string {
+	if x != nil {
+		return x.StatusText
+	}
+	return ""
+}
+
+func (x *CancelOrderReply) GetCancelFeeAmount() float64 {
+	if x != nil {
+		return x.CancelFeeAmount
+	}
+	return 0
+}
+
+func (x *CancelOrderReply) GetCancelFeeRule() string {
+	if x != nil {
+		return x.CancelFeeRule
+	}
+	return ""
+}
+
+func (x *CancelOrderReply) GetCancelFeeDescription() string {
+	if x != nil {
+		return x.CancelFeeDescription
+	}
+	return ""
+}
+
+func (x *CancelOrderReply) GetRefundAmount() float64 {
+	if x != nil {
+		return x.RefundAmount
+	}
+	return 0
+}
+
+func (x *CancelOrderReply) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+func (x *CancelOrderReply) GetCancelledAt() string {
+	if x != nil {
+		return x.CancelledAt
+	}
+	return ""
+}
+
+type StreamOrderEventsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderId       string                 `protobuf:"bytes,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	LastEventId   string                 `protobuf:"bytes,2,opt,name=last_event_id,json=lastEventId,proto3" json:"last_event_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StreamOrderEventsRequest) Reset() {
+	*x = StreamOrderEventsRequest{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamOrderEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamOrderEventsRequest) ProtoMessage() {}
+
+func (x *StreamOrderEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamOrderEventsRequest.ProtoReflect.Descriptor instead.
+func (*StreamOrderEventsRequest) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *StreamOrderEventsRequest) GetOrderId() string {
+	if x != nil {
+		return x.OrderId
+	}
+	return ""
+}
+
+func (x *StreamOrderEventsRequest) GetLastEventId() string {
+	if x != nil {
+		return x.LastEventId
+	}
+	return ""
+}
+
+type OrderEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	EventType     string                 `protobuf:"bytes,2,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
+	OccurredAt    string                 `protobuf:"bytes,3,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	OrderStatus   string                 `protobuf:"bytes,4,opt,name=order_status,json=orderStatus,proto3" json:"order_status,omitempty"`
+	StatusText    string                 `protobuf:"bytes,5,opt,name=status_text,json=statusText,proto3" json:"status_text,omitempty"`
+	Longitude     float64                `protobuf:"fixed64,6,opt,name=longitude,proto3" json:"longitude,omitempty"`
+	Latitude      float64                `protobuf:"fixed64,7,opt,name=latitude,proto3" json:"latitude,omitempty"`
+	SpeedKmh      float64                `protobuf:"fixed64,8,opt,name=speed_kmh,json=speedKmh,proto3" json:"speed_kmh,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OrderEvent) Reset() {
+	*x = OrderEvent{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OrderEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OrderEvent) ProtoMessage() {}
+
+func (x *OrderEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OrderEvent.ProtoReflect.Descriptor instead.
+func (*OrderEvent) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *OrderEvent) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *OrderEvent) GetEventType() string {
+	if x != nil {
+		return x.EventType
+	}
+	return ""
+}
+
+func (x *OrderEvent) GetOccurredAt() string {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return ""
+}
+
+func (x *OrderEvent) GetOrderStatus() string {
+	if x != nil {
+		return x.OrderStatus
+	}
+	return ""
+}
+
+func (x *OrderEvent) GetStatusText() string {
+	if x != nil {
+		return x.StatusText
+	}
+	return ""
+}
+
+func (x *OrderEvent) GetLongitude() float64 {
+	if x != nil {
+		return x.Longitude
+	}
+	return 0
+}
+
+func (x *OrderEvent) GetLatitude() float64 {
+	if x != nil {
+		return x.Latitude
+	}
+	return 0
+}
+
+func (x *OrderEvent) GetSpeedKmh() float64 {
+	if x != nil {
+		return x.SpeedKmh
+	}
+	return 0
+}
+
+type ExecuteOrderCommandRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	OrderId         string                 `protobuf:"bytes,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	CommandType     string                 `protobuf:"bytes,2,opt,name=command_type,json=commandType,proto3" json:"command_type,omitempty"`
+	BoardingCode    string                 `protobuf:"bytes,3,opt,name=boarding_code,json=boardingCode,proto3" json:"boarding_code,omitempty"`
+	ReasonCode      string                 `protobuf:"bytes,4,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	ClientLongitude float64                `protobuf:"fixed64,5,opt,name=client_longitude,json=clientLongitude,proto3" json:"client_longitude,omitempty"`
+	ClientLatitude  float64                `protobuf:"fixed64,6,opt,name=client_latitude,json=clientLatitude,proto3" json:"client_latitude,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ExecuteOrderCommandRequest) Reset() {
+	*x = ExecuteOrderCommandRequest{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecuteOrderCommandRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecuteOrderCommandRequest) ProtoMessage() {}
+
+func (x *ExecuteOrderCommandRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecuteOrderCommandRequest.ProtoReflect.Descriptor instead.
+func (*ExecuteOrderCommandRequest) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *ExecuteOrderCommandRequest) GetOrderId() string {
+	if x != nil {
+		return x.OrderId
+	}
+	return ""
+}
+
+func (x *ExecuteOrderCommandRequest) GetCommandType() string {
+	if x != nil {
+		return x.CommandType
+	}
+	return ""
+}
+
+func (x *ExecuteOrderCommandRequest) GetBoardingCode() string {
+	if x != nil {
+		return x.BoardingCode
+	}
+	return ""
+}
+
+func (x *ExecuteOrderCommandRequest) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+func (x *ExecuteOrderCommandRequest) GetClientLongitude() float64 {
+	if x != nil {
+		return x.ClientLongitude
+	}
+	return 0
+}
+
+func (x *ExecuteOrderCommandRequest) GetClientLatitude() float64 {
+	if x != nil {
+		return x.ClientLatitude
+	}
+	return 0
+}
+
+type RefundPreview struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Amount          float64                `protobuf:"fixed64,1,opt,name=amount,proto3" json:"amount,omitempty"`
+	Currency        string                 `protobuf:"bytes,2,opt,name=currency,proto3" json:"currency,omitempty"`
+	RuleDescription string                 `protobuf:"bytes,3,opt,name=rule_description,json=ruleDescription,proto3" json:"rule_description,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *RefundPreview) Reset() {
+	*x = RefundPreview{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefundPreview) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefundPreview) ProtoMessage() {}
+
+func (x *RefundPreview) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefundPreview.ProtoReflect.Descriptor instead.
+func (*RefundPreview) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *RefundPreview) GetAmount() float64 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+func (x *RefundPreview) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+func (x *RefundPreview) GetRuleDescription() string {
+	if x != nil {
+		return x.RuleDescription
+	}
+	return ""
+}
+
+type ExecuteOrderCommandReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CommandId     string                 `protobuf:"bytes,1,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
+	Accepted      bool                   `protobuf:"varint,2,opt,name=accepted,proto3" json:"accepted,omitempty"`
+	OrderStatus   string                 `protobuf:"bytes,3,opt,name=order_status,json=orderStatus,proto3" json:"order_status,omitempty"`
+	StatusText    string                 `protobuf:"bytes,4,opt,name=status_text,json=statusText,proto3" json:"status_text,omitempty"`
+	RefundPreview *RefundPreview         `protobuf:"bytes,5,opt,name=refund_preview,json=refundPreview,proto3" json:"refund_preview,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExecuteOrderCommandReply) Reset() {
+	*x = ExecuteOrderCommandReply{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecuteOrderCommandReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecuteOrderCommandReply) ProtoMessage() {}
+
+func (x *ExecuteOrderCommandReply) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecuteOrderCommandReply.ProtoReflect.Descriptor instead.
+func (*ExecuteOrderCommandReply) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *ExecuteOrderCommandReply) GetCommandId() string {
+	if x != nil {
+		return x.CommandId
+	}
+	return ""
+}
+
+func (x *ExecuteOrderCommandReply) GetAccepted() bool {
+	if x != nil {
+		return x.Accepted
+	}
+	return false
+}
+
+func (x *ExecuteOrderCommandReply) GetOrderStatus() string {
+	if x != nil {
+		return x.OrderStatus
+	}
+	return ""
+}
+
+func (x *ExecuteOrderCommandReply) GetStatusText() string {
+	if x != nil {
+		return x.StatusText
+	}
+	return ""
+}
+
+func (x *ExecuteOrderCommandReply) GetRefundPreview() *RefundPreview {
+	if x != nil {
+		return x.RefundPreview
+	}
+	return nil
+}
+
+type CreatePaymentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderId       string                 `protobuf:"bytes,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	PaymentMethod string                 `protobuf:"bytes,2,opt,name=payment_method,json=paymentMethod,proto3" json:"payment_method,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreatePaymentRequest) Reset() {
+	*x = CreatePaymentRequest{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePaymentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePaymentRequest) ProtoMessage() {}
+
+func (x *CreatePaymentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePaymentRequest.ProtoReflect.Descriptor instead.
+func (*CreatePaymentRequest) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *CreatePaymentRequest) GetOrderId() string {
+	if x != nil {
+		return x.OrderId
+	}
+	return ""
+}
+
+func (x *CreatePaymentRequest) GetPaymentMethod() string {
+	if x != nil {
+		return x.PaymentMethod
+	}
+	return ""
+}
+
+type CreatePaymentReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PaymentId     string                 `protobuf:"bytes,1,opt,name=payment_id,json=paymentId,proto3" json:"payment_id,omitempty"`
+	PaymentNo     string                 `protobuf:"bytes,2,opt,name=payment_no,json=paymentNo,proto3" json:"payment_no,omitempty"`
+	Amount        float64                `protobuf:"fixed64,3,opt,name=amount,proto3" json:"amount,omitempty"`
+	Currency      string                 `protobuf:"bytes,4,opt,name=currency,proto3" json:"currency,omitempty"`
+	PaymentStatus string                 `protobuf:"bytes,5,opt,name=payment_status,json=paymentStatus,proto3" json:"payment_status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreatePaymentReply) Reset() {
+	*x = CreatePaymentReply{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePaymentReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePaymentReply) ProtoMessage() {}
+
+func (x *CreatePaymentReply) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePaymentReply.ProtoReflect.Descriptor instead.
+func (*CreatePaymentReply) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *CreatePaymentReply) GetPaymentId() string {
+	if x != nil {
+		return x.PaymentId
+	}
+	return ""
+}
+
+func (x *CreatePaymentReply) GetPaymentNo() string {
+	if x != nil {
+		return x.PaymentNo
+	}
+	return ""
+}
+
+func (x *CreatePaymentReply) GetAmount() float64 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+func (x *CreatePaymentReply) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+func (x *CreatePaymentReply) GetPaymentStatus() string {
+	if x != nil {
+		return x.PaymentStatus
+	}
+	return ""
+}
+
+type PaymentCallbackRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	PaymentNo      string                 `protobuf:"bytes,1,opt,name=payment_no,json=paymentNo,proto3" json:"payment_no,omitempty"`
+	ChannelTradeNo string                 `protobuf:"bytes,2,opt,name=channel_trade_no,json=channelTradeNo,proto3" json:"channel_trade_no,omitempty"`
+	Result         string                 `protobuf:"bytes,3,opt,name=result,proto3" json:"result,omitempty"`
+	Amount         float64                `protobuf:"fixed64,4,opt,name=amount,proto3" json:"amount,omitempty"`
+	OccurredAt     string                 `protobuf:"bytes,5,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PaymentCallbackRequest) Reset() {
+	*x = PaymentCallbackRequest{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PaymentCallbackRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PaymentCallbackRequest) ProtoMessage() {}
+
+func (x *PaymentCallbackRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PaymentCallbackRequest.ProtoReflect.Descriptor instead.
+func (*PaymentCallbackRequest) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *PaymentCallbackRequest) GetPaymentNo() string {
+	if x != nil {
+		return x.PaymentNo
+	}
+	return ""
+}
+
+func (x *PaymentCallbackRequest) GetChannelTradeNo() string {
+	if x != nil {
+		return x.ChannelTradeNo
+	}
+	return ""
+}
+
+func (x *PaymentCallbackRequest) GetResult() string {
+	if x != nil {
+		return x.Result
+	}
+	return ""
+}
+
+func (x *PaymentCallbackRequest) GetAmount() float64 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+func (x *PaymentCallbackRequest) GetOccurredAt() string {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return ""
+}
+
+type PaymentCallbackReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PaymentId     string                 `protobuf:"bytes,1,opt,name=payment_id,json=paymentId,proto3" json:"payment_id,omitempty"`
+	PaymentNo     string                 `protobuf:"bytes,2,opt,name=payment_no,json=paymentNo,proto3" json:"payment_no,omitempty"`
+	PaymentStatus string                 `protobuf:"bytes,3,opt,name=payment_status,json=paymentStatus,proto3" json:"payment_status,omitempty"`
+	OrderId       string                 `protobuf:"bytes,4,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	Amount        float64                `protobuf:"fixed64,5,opt,name=amount,proto3" json:"amount,omitempty"`
+	Duplicated    bool                   `protobuf:"varint,6,opt,name=duplicated,proto3" json:"duplicated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PaymentCallbackReply) Reset() {
+	*x = PaymentCallbackReply{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PaymentCallbackReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PaymentCallbackReply) ProtoMessage() {}
+
+func (x *PaymentCallbackReply) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PaymentCallbackReply.ProtoReflect.Descriptor instead.
+func (*PaymentCallbackReply) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *PaymentCallbackReply) GetPaymentId() string {
+	if x != nil {
+		return x.PaymentId
+	}
+	return ""
+}
+
+func (x *PaymentCallbackReply) GetPaymentNo() string {
+	if x != nil {
+		return x.PaymentNo
+	}
+	return ""
+}
+
+func (x *PaymentCallbackReply) GetPaymentStatus() string {
+	if x != nil {
+		return x.PaymentStatus
+	}
+	return ""
+}
+
+func (x *PaymentCallbackReply) GetOrderId() string {
+	if x != nil {
+		return x.OrderId
+	}
+	return ""
+}
+
+func (x *PaymentCallbackReply) GetAmount() float64 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+func (x *PaymentCallbackReply) GetDuplicated() bool {
+	if x != nil {
+		return x.Duplicated
+	}
+	return false
+}
+
+type SubmitReviewRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderId       string                 `protobuf:"bytes,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	Rating        int32                  `protobuf:"varint,2,opt,name=rating,proto3" json:"rating,omitempty"`
+	TagCodes      []string               `protobuf:"bytes,3,rep,name=tag_codes,json=tagCodes,proto3" json:"tag_codes,omitempty"`
+	Comment       string                 `protobuf:"bytes,4,opt,name=comment,proto3" json:"comment,omitempty"`
+	Anonymous     bool                   `protobuf:"varint,5,opt,name=anonymous,proto3" json:"anonymous,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmitReviewRequest) Reset() {
+	*x = SubmitReviewRequest{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmitReviewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmitReviewRequest) ProtoMessage() {}
+
+func (x *SubmitReviewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmitReviewRequest.ProtoReflect.Descriptor instead.
+func (*SubmitReviewRequest) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *SubmitReviewRequest) GetOrderId() string {
+	if x != nil {
+		return x.OrderId
+	}
+	return ""
+}
+
+func (x *SubmitReviewRequest) GetRating() int32 {
+	if x != nil {
+		return x.Rating
+	}
+	return 0
+}
+
+func (x *SubmitReviewRequest) GetTagCodes() []string {
+	if x != nil {
+		return x.TagCodes
+	}
+	return nil
+}
+
+func (x *SubmitReviewRequest) GetComment() string {
+	if x != nil {
+		return x.Comment
+	}
+	return ""
+}
+
+func (x *SubmitReviewRequest) GetAnonymous() bool {
+	if x != nil {
+		return x.Anonymous
+	}
+	return false
+}
+
+type SubmitReviewReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ReviewId      string                 `protobuf:"bytes,1,opt,name=review_id,json=reviewId,proto3" json:"review_id,omitempty"`
+	SubmittedAt   string                 `protobuf:"bytes,2,opt,name=submitted_at,json=submittedAt,proto3" json:"submitted_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmitReviewReply) Reset() {
+	*x = SubmitReviewReply{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmitReviewReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmitReviewReply) ProtoMessage() {}
+
+func (x *SubmitReviewReply) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmitReviewReply.ProtoReflect.Descriptor instead.
+func (*SubmitReviewReply) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *SubmitReviewReply) GetReviewId() string {
+	if x != nil {
+		return x.ReviewId
+	}
+	return ""
+}
+
+func (x *SubmitReviewReply) GetSubmittedAt() string {
+	if x != nil {
+		return x.SubmittedAt
+	}
+	return ""
+}
+
+type ListOrderHistoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Cursor        string                 `protobuf:"bytes,1,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	StatusGroup   string                 `protobuf:"bytes,3,opt,name=status_group,json=statusGroup,proto3" json:"status_group,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListOrderHistoryRequest) Reset() {
+	*x = ListOrderHistoryRequest{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListOrderHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListOrderHistoryRequest) ProtoMessage() {}
+
+func (x *ListOrderHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListOrderHistoryRequest.ProtoReflect.Descriptor instead.
+func (*ListOrderHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *ListOrderHistoryRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+func (x *ListOrderHistoryRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListOrderHistoryRequest) GetStatusGroup() string {
+	if x != nil {
+		return x.StatusGroup
+	}
+	return ""
+}
+
+type OrderHistoryItem struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	OrderId            string                 `protobuf:"bytes,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	OrderNo            string                 `protobuf:"bytes,2,opt,name=order_no,json=orderNo,proto3" json:"order_no,omitempty"`
+	OriginName         string                 `protobuf:"bytes,3,opt,name=origin_name,json=originName,proto3" json:"origin_name,omitempty"`
+	DestinationName    string                 `protobuf:"bytes,4,opt,name=destination_name,json=destinationName,proto3" json:"destination_name,omitempty"`
+	DepartureAt        string                 `protobuf:"bytes,5,opt,name=departure_at,json=departureAt,proto3" json:"departure_at,omitempty"`
+	VehicleDisplayName string                 `protobuf:"bytes,6,opt,name=vehicle_display_name,json=vehicleDisplayName,proto3" json:"vehicle_display_name,omitempty"`
+	PaidAmount         float64                `protobuf:"fixed64,7,opt,name=paid_amount,json=paidAmount,proto3" json:"paid_amount,omitempty"`
+	Currency           string                 `protobuf:"bytes,8,opt,name=currency,proto3" json:"currency,omitempty"`
+	Status             string                 `protobuf:"bytes,9,opt,name=status,proto3" json:"status,omitempty"`
+	StatusText         string                 `protobuf:"bytes,10,opt,name=status_text,json=statusText,proto3" json:"status_text,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *OrderHistoryItem) Reset() {
+	*x = OrderHistoryItem{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OrderHistoryItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OrderHistoryItem) ProtoMessage() {}
+
+func (x *OrderHistoryItem) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OrderHistoryItem.ProtoReflect.Descriptor instead.
+func (*OrderHistoryItem) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *OrderHistoryItem) GetOrderId() string {
+	if x != nil {
+		return x.OrderId
+	}
+	return ""
+}
+
+func (x *OrderHistoryItem) GetOrderNo() string {
+	if x != nil {
+		return x.OrderNo
+	}
+	return ""
+}
+
+func (x *OrderHistoryItem) GetOriginName() string {
+	if x != nil {
+		return x.OriginName
+	}
+	return ""
+}
+
+func (x *OrderHistoryItem) GetDestinationName() string {
+	if x != nil {
+		return x.DestinationName
+	}
+	return ""
+}
+
+func (x *OrderHistoryItem) GetDepartureAt() string {
+	if x != nil {
+		return x.DepartureAt
+	}
+	return ""
+}
+
+func (x *OrderHistoryItem) GetVehicleDisplayName() string {
+	if x != nil {
+		return x.VehicleDisplayName
+	}
+	return ""
+}
+
+func (x *OrderHistoryItem) GetPaidAmount() float64 {
+	if x != nil {
+		return x.PaidAmount
+	}
+	return 0
+}
+
+func (x *OrderHistoryItem) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+func (x *OrderHistoryItem) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *OrderHistoryItem) GetStatusText() string {
+	if x != nil {
+		return x.StatusText
+	}
+	return ""
+}
+
+type ListOrderHistoryReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*OrderHistoryItem    `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	NextCursor    string                 `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListOrderHistoryReply) Reset() {
+	*x = ListOrderHistoryReply{}
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListOrderHistoryReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListOrderHistoryReply) ProtoMessage() {}
+
+func (x *ListOrderHistoryReply) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ridehailing_v1_ridehailing_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListOrderHistoryReply.ProtoReflect.Descriptor instead.
+func (*ListOrderHistoryReply) Descriptor() ([]byte, []int) {
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *ListOrderHistoryReply) GetItems() []*OrderHistoryItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListOrderHistoryReply) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
+func (x *ListOrderHistoryReply) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
 var File_api_ridehailing_v1_ridehailing_proto protoreflect.FileDescriptor
 
 const file_api_ridehailing_v1_ridehailing_proto_rawDesc = "" +
 	"\n" +
-	"$api/ridehailing/v1/ridehailing.proto\x12\x0eridehailing.v1BCZAgithub.com/lijayin-0202/radish-ride-service/api/ridehailing/v1;v1b\x06proto3"
+	"$api/ridehailing/v1/ridehailing.proto\x12\x0eridehailing.v1\x1a\x1cgoogle/api/annotations.proto\"\x8a\x01\n" +
+	"\x05Place\x12\x19\n" +
+	"\bplace_id\x18\x01 \x01(\tR\aplaceId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
+	"\aaddress\x18\x03 \x01(\tR\aaddress\x12\x1c\n" +
+	"\tlongitude\x18\x04 \x01(\x01R\tlongitude\x12\x1a\n" +
+	"\blatitude\x18\x05 \x01(\x01R\blatitude\"\xdd\x01\n" +
+	"\fRouteSummary\x12\x1f\n" +
+	"\vorigin_name\x18\x01 \x01(\tR\n" +
+	"originName\x12)\n" +
+	"\x10destination_name\x18\x02 \x01(\tR\x0fdestinationName\x12'\n" +
+	"\x0fdistance_meters\x18\x03 \x01(\x05R\x0edistanceMeters\x12<\n" +
+	"\x1aestimated_duration_seconds\x18\x04 \x01(\x05R\x18estimatedDurationSeconds\x12\x1a\n" +
+	"\bpolyline\x18\x05 \x01(\tR\bpolyline\"J\n" +
+	"\bFareItem\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
+	"\x06amount\x18\x03 \x01(\x01R\x06amount\"\xfa\x01\n" +
+	"\x04Fare\x12'\n" +
+	"\x0foriginal_amount\x18\x01 \x01(\x01R\x0eoriginalAmount\x12'\n" +
+	"\x0fdiscount_amount\x18\x02 \x01(\x01R\x0ediscountAmount\x12%\n" +
+	"\x0epayable_amount\x18\x03 \x01(\x01R\rpayableAmount\x12\x1a\n" +
+	"\bcurrency\x18\x04 \x01(\tR\bcurrency\x126\n" +
+	"\tbreakdown\x18\x05 \x03(\v2\x18.ridehailing.v1.FareItemR\tbreakdown\x12%\n" +
+	"\x0epayment_status\x18\x06 \x01(\tR\rpaymentStatus\"\x97\x01\n" +
+	"\rAppliedCoupon\x12\x1b\n" +
+	"\tcoupon_id\x18\x01 \x01(\tR\bcouponId\x12\x1f\n" +
+	"\vcoupon_name\x18\x02 \x01(\tR\n" +
+	"couponName\x12'\n" +
+	"\x0fdiscount_amount\x18\x03 \x01(\x01R\x0ediscountAmount\x12\x1f\n" +
+	"\vvalid_until\x18\x04 \x01(\tR\n" +
+	"validUntil\"\xf7\x01\n" +
+	"\x13EstimateFareRequest\x12\x1b\n" +
+	"\tcity_code\x18\x01 \x01(\tR\bcityCode\x12\x1b\n" +
+	"\tride_mode\x18\x02 \x01(\tR\brideMode\x12!\n" +
+	"\fscheduled_at\x18\x03 \x01(\tR\vscheduledAt\x12-\n" +
+	"\x06origin\x18\x04 \x01(\v2\x15.ridehailing.v1.PlaceR\x06origin\x127\n" +
+	"\vdestination\x18\x05 \x01(\v2\x15.ridehailing.v1.PlaceR\vdestination\x12\x1b\n" +
+	"\tcoupon_id\x18\x06 \x01(\tR\bcouponId\"\x9c\x02\n" +
+	"\fServiceQuote\x12&\n" +
+	"\x0fservice_type_id\x18\x01 \x01(\tR\rserviceTypeId\x12!\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x12\n" +
+	"\x04tags\x18\x03 \x03(\tR\x04tags\x12\x1d\n" +
+	"\n" +
+	"seat_count\x18\x04 \x01(\x05R\tseatCount\x12,\n" +
+	"\x12pickup_eta_seconds\x18\x05 \x01(\x05R\x10pickupEtaSeconds\x12(\n" +
+	"\x04fare\x18\x06 \x01(\v2\x14.ridehailing.v1.FareR\x04fare\x126\n" +
+	"\x17available_vehicle_count\x18\a \x01(\x05R\x15availableVehicleCount\"\x83\x02\n" +
+	"\x11EstimateFareReply\x12\x1f\n" +
+	"\vquote_token\x18\x01 \x01(\tR\n" +
+	"quoteToken\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\x02 \x01(\tR\texpiresAt\x122\n" +
+	"\x05route\x18\x03 \x01(\v2\x1c.ridehailing.v1.RouteSummaryR\x05route\x124\n" +
+	"\x06quotes\x18\x04 \x03(\v2\x1c.ridehailing.v1.ServiceQuoteR\x06quotes\x12D\n" +
+	"\x0eapplied_coupon\x18\x05 \x01(\v2\x1d.ridehailing.v1.AppliedCouponR\rappliedCoupon\"\xe1\x01\n" +
+	"\x12CreateOrderRequest\x12\x1f\n" +
+	"\vquote_token\x18\x01 \x01(\tR\n" +
+	"quoteToken\x12&\n" +
+	"\x0fservice_type_id\x18\x02 \x01(\tR\rserviceTypeId\x12'\n" +
+	"\x0fpassenger_count\x18\x03 \x01(\x05R\x0epassengerCount\x12#\n" +
+	"\rcontact_phone\x18\x04 \x01(\tR\fcontactPhone\x124\n" +
+	"\x16user_agreement_version\x18\x05 \x01(\tR\x14userAgreementVersion\"z\n" +
+	"\fMatchingInfo\x122\n" +
+	"\x15scanned_vehicle_count\x18\x01 \x01(\x05R\x13scannedVehicleCount\x126\n" +
+	"\x17estimated_match_seconds\x18\x02 \x01(\x05R\x15estimatedMatchSeconds\"\xc4\x02\n" +
+	"\x10CreateOrderReply\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\tR\aorderId\x12\x19\n" +
+	"\border_no\x18\x02 \x01(\tR\aorderNo\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x128\n" +
+	"\bmatching\x18\x04 \x01(\v2\x1c.ridehailing.v1.MatchingInfoR\bmatching\x12A\n" +
+	"\rroute_summary\x18\x05 \x01(\v2\x1c.ridehailing.v1.RouteSummaryR\frouteSummary\x12;\n" +
+	"\x0eestimated_fare\x18\x06 \x01(\v2\x14.ridehailing.v1.FareR\restimatedFare\x12(\n" +
+	"\x10event_stream_url\x18\a \x01(\tR\x0eeventStreamUrl\",\n" +
+	"\x0fGetOrderRequest\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\tR\aorderId\"\xe1\x01\n" +
+	"\vVehicleInfo\x12\x1d\n" +
+	"\n" +
+	"vehicle_id\x18\x01 \x01(\tR\tvehicleId\x12\x19\n" +
+	"\bplate_no\x18\x02 \x01(\tR\aplateNo\x12\x14\n" +
+	"\x05model\x18\x03 \x01(\tR\x05model\x12*\n" +
+	"\x11service_type_name\x18\x04 \x01(\tR\x0fserviceTypeName\x12\x17\n" +
+	"\abody_no\x18\x05 \x01(\tR\x06bodyNo\x12\x14\n" +
+	"\x05color\x18\x06 \x01(\tR\x05color\x12'\n" +
+	"\x0fbattery_percent\x18\a \x01(\x05R\x0ebatteryPercent\"\xa3\x01\n" +
+	"\n" +
+	"PickupInfo\x12\x1f\n" +
+	"\veta_seconds\x18\x01 \x01(\x05R\n" +
+	"etaSeconds\x12\x1d\n" +
+	"\n" +
+	"arrived_at\x18\x02 \x01(\tR\tarrivedAt\x12#\n" +
+	"\rwait_deadline\x18\x03 \x01(\tR\fwaitDeadline\x120\n" +
+	"\x14boarding_code_suffix\x18\x04 \x01(\tR\x12boardingCodeSuffix\"\xd0\x01\n" +
+	"\fTripProgress\x12:\n" +
+	"\x19remaining_distance_meters\x18\x01 \x01(\x05R\x17remainingDistanceMeters\x12<\n" +
+	"\x1aremaining_duration_seconds\x18\x02 \x01(\x05R\x18remainingDurationSeconds\x12\x1b\n" +
+	"\tspeed_kmh\x18\x03 \x01(\x01R\bspeedKmh\x12)\n" +
+	"\x10progress_percent\x18\x04 \x01(\x05R\x0fprogressPercent\"\x88\x01\n" +
+	"\x0eLatestLocation\x12\x1c\n" +
+	"\tlongitude\x18\x01 \x01(\x01R\tlongitude\x12\x1a\n" +
+	"\blatitude\x18\x02 \x01(\x01R\blatitude\x12\x1b\n" +
+	"\tspeed_kmh\x18\x03 \x01(\x01R\bspeedKmh\x12\x1f\n" +
+	"\vreported_at\x18\x04 \x01(\tR\n" +
+	"reportedAt\"\xda\x02\n" +
+	"\x0fDispatchSummary\x12\x1a\n" +
+	"\bstrategy\x18\x01 \x01(\tR\bstrategy\x12)\n" +
+	"\x10strategy_version\x18\x02 \x01(\tR\x0fstrategyVersion\x12'\n" +
+	"\x0fdispatch_status\x18\x03 \x01(\tR\x0edispatchStatus\x12)\n" +
+	"\x10vehicle_response\x18\x04 \x01(\tR\x0fvehicleResponse\x12#\n" +
+	"\rattempt_count\x18\x05 \x01(\x05R\fattemptCount\x12,\n" +
+	"\x12pickup_eta_seconds\x18\x06 \x01(\x05R\x10pickupEtaSeconds\x124\n" +
+	"\x16pickup_distance_meters\x18\a \x01(\x01R\x14pickupDistanceMeters\x12#\n" +
+	"\rdispatched_at\x18\b \x01(\tR\fdispatchedAt\"\x83\x01\n" +
+	"\x14BoardingVerification\x12\x16\n" +
+	"\x06method\x18\x01 \x01(\tR\x06method\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1f\n" +
+	"\vverified_at\x18\x03 \x01(\tR\n" +
+	"verifiedAt\x12\x1a\n" +
+	"\battempts\x18\x04 \x01(\x05R\battempts\"\xad\x01\n" +
+	"\vSafetyEvent\x12\x19\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
+	"\x05level\x18\x03 \x01(\tR\x05level\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x16\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\x12\x1f\n" +
+	"\voccurred_at\x18\x06 \x01(\tR\n" +
+	"occurredAt\"\xf1\x05\n" +
+	"\x12OrderLiveViewReply\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\tR\aorderId\x12\x19\n" +
+	"\border_no\x18\x02 \x01(\tR\aorderNo\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x1f\n" +
+	"\vstatus_text\x18\x04 \x01(\tR\n" +
+	"statusText\x12\x12\n" +
+	"\x04step\x18\x05 \x01(\x05R\x04step\x125\n" +
+	"\avehicle\x18\x06 \x01(\v2\x1b.ridehailing.v1.VehicleInfoR\avehicle\x122\n" +
+	"\x06pickup\x18\a \x01(\v2\x1a.ridehailing.v1.PickupInfoR\x06pickup\x122\n" +
+	"\x05route\x18\b \x01(\v2\x1c.ridehailing.v1.RouteSummaryR\x05route\x12A\n" +
+	"\rtrip_progress\x18\t \x01(\v2\x1c.ridehailing.v1.TripProgressR\ftripProgress\x12(\n" +
+	"\x04fare\x18\n" +
+	" \x01(\v2\x14.ridehailing.v1.FareR\x04fare\x12+\n" +
+	"\x11available_actions\x18\v \x03(\tR\x10availableActions\x12\"\n" +
+	"\rlast_event_id\x18\f \x01(\tR\vlastEventId\x12:\n" +
+	"\blocation\x18\r \x01(\v2\x1e.ridehailing.v1.LatestLocationR\blocation\x12;\n" +
+	"\bdispatch\x18\x0e \x01(\v2\x1f.ridehailing.v1.DispatchSummaryR\bdispatch\x12@\n" +
+	"\bboarding\x18\x0f \x01(\v2$.ridehailing.v1.BoardingVerificationR\bboarding\x12@\n" +
+	"\rsafety_events\x18\x10 \x03(\v2\x1b.ridehailing.v1.SafetyEventR\fsafetyEvents\"\xb2\x01\n" +
+	"\x11SettlementPayment\x12\x1d\n" +
+	"\n" +
+	"payment_id\x18\x01 \x01(\tR\tpaymentId\x12\x1d\n" +
+	"\n" +
+	"payment_no\x18\x02 \x01(\tR\tpaymentNo\x12\x16\n" +
+	"\x06method\x18\x03 \x01(\tR\x06method\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12\x16\n" +
+	"\x06amount\x18\x05 \x01(\x01R\x06amount\x12\x17\n" +
+	"\apaid_at\x18\x06 \x01(\tR\x06paidAt\"\x7f\n" +
+	"\x10SettlementReview\x12\x1c\n" +
+	"\tsubmitted\x18\x01 \x01(\bR\tsubmitted\x12\x16\n" +
+	"\x06rating\x18\x02 \x01(\x05R\x06rating\x12\x12\n" +
+	"\x04tags\x18\x03 \x03(\tR\x04tags\x12!\n" +
+	"\fsubmitted_at\x18\x04 \x01(\tR\vsubmittedAt\"\xbb\x03\n" +
+	"\x0fSettlementReply\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\tR\aorderId\x12\x19\n" +
+	"\border_no\x18\x02 \x01(\tR\aorderNo\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x1f\n" +
+	"\vstatus_text\x18\x04 \x01(\tR\n" +
+	"statusText\x12%\n" +
+	"\x0epayable_amount\x18\x05 \x01(\x01R\rpayableAmount\x12\x1f\n" +
+	"\vpaid_amount\x18\x06 \x01(\x01R\n" +
+	"paidAmount\x12'\n" +
+	"\x0frefunded_amount\x18\a \x01(\x01R\x0erefundedAmount\x12\x1a\n" +
+	"\bcurrency\x18\b \x01(\tR\bcurrency\x125\n" +
+	"\tfee_items\x18\t \x03(\v2\x18.ridehailing.v1.FareItemR\bfeeItems\x12;\n" +
+	"\apayment\x18\n" +
+	" \x01(\v2!.ridehailing.v1.SettlementPaymentR\apayment\x128\n" +
+	"\x06review\x18\v \x01(\v2 .ridehailing.v1.SettlementReviewR\x06review\"P\n" +
+	"\x12CancelOrderRequest\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\tR\aorderId\x12\x1f\n" +
+	"\vreason_code\x18\x02 \x01(\tR\n" +
+	"reasonCode\"\xdf\x02\n" +
+	"\x10CancelOrderReply\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\tR\aorderId\x12!\n" +
+	"\forder_status\x18\x02 \x01(\tR\vorderStatus\x12\x1f\n" +
+	"\vstatus_text\x18\x03 \x01(\tR\n" +
+	"statusText\x12*\n" +
+	"\x11cancel_fee_amount\x18\x04 \x01(\x01R\x0fcancelFeeAmount\x12&\n" +
+	"\x0fcancel_fee_rule\x18\x05 \x01(\tR\rcancelFeeRule\x124\n" +
+	"\x16cancel_fee_description\x18\x06 \x01(\tR\x14cancelFeeDescription\x12#\n" +
+	"\rrefund_amount\x18\a \x01(\x01R\frefundAmount\x12\x1a\n" +
+	"\bcurrency\x18\b \x01(\tR\bcurrency\x12!\n" +
+	"\fcancelled_at\x18\t \x01(\tR\vcancelledAt\"Y\n" +
+	"\x18StreamOrderEventsRequest\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\tR\aorderId\x12\"\n" +
+	"\rlast_event_id\x18\x02 \x01(\tR\vlastEventId\"\x82\x02\n" +
+	"\n" +
+	"OrderEvent\x12\x19\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1d\n" +
+	"\n" +
+	"event_type\x18\x02 \x01(\tR\teventType\x12\x1f\n" +
+	"\voccurred_at\x18\x03 \x01(\tR\n" +
+	"occurredAt\x12!\n" +
+	"\forder_status\x18\x04 \x01(\tR\vorderStatus\x12\x1f\n" +
+	"\vstatus_text\x18\x05 \x01(\tR\n" +
+	"statusText\x12\x1c\n" +
+	"\tlongitude\x18\x06 \x01(\x01R\tlongitude\x12\x1a\n" +
+	"\blatitude\x18\a \x01(\x01R\blatitude\x12\x1b\n" +
+	"\tspeed_kmh\x18\b \x01(\x01R\bspeedKmh\"\xf4\x01\n" +
+	"\x1aExecuteOrderCommandRequest\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\tR\aorderId\x12!\n" +
+	"\fcommand_type\x18\x02 \x01(\tR\vcommandType\x12#\n" +
+	"\rboarding_code\x18\x03 \x01(\tR\fboardingCode\x12\x1f\n" +
+	"\vreason_code\x18\x04 \x01(\tR\n" +
+	"reasonCode\x12)\n" +
+	"\x10client_longitude\x18\x05 \x01(\x01R\x0fclientLongitude\x12'\n" +
+	"\x0fclient_latitude\x18\x06 \x01(\x01R\x0eclientLatitude\"n\n" +
+	"\rRefundPreview\x12\x16\n" +
+	"\x06amount\x18\x01 \x01(\x01R\x06amount\x12\x1a\n" +
+	"\bcurrency\x18\x02 \x01(\tR\bcurrency\x12)\n" +
+	"\x10rule_description\x18\x03 \x01(\tR\x0fruleDescription\"\xdf\x01\n" +
+	"\x18ExecuteOrderCommandReply\x12\x1d\n" +
+	"\n" +
+	"command_id\x18\x01 \x01(\tR\tcommandId\x12\x1a\n" +
+	"\baccepted\x18\x02 \x01(\bR\baccepted\x12!\n" +
+	"\forder_status\x18\x03 \x01(\tR\vorderStatus\x12\x1f\n" +
+	"\vstatus_text\x18\x04 \x01(\tR\n" +
+	"statusText\x12D\n" +
+	"\x0erefund_preview\x18\x05 \x01(\v2\x1d.ridehailing.v1.RefundPreviewR\rrefundPreview\"X\n" +
+	"\x14CreatePaymentRequest\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\tR\aorderId\x12%\n" +
+	"\x0epayment_method\x18\x02 \x01(\tR\rpaymentMethod\"\xad\x01\n" +
+	"\x12CreatePaymentReply\x12\x1d\n" +
+	"\n" +
+	"payment_id\x18\x01 \x01(\tR\tpaymentId\x12\x1d\n" +
+	"\n" +
+	"payment_no\x18\x02 \x01(\tR\tpaymentNo\x12\x16\n" +
+	"\x06amount\x18\x03 \x01(\x01R\x06amount\x12\x1a\n" +
+	"\bcurrency\x18\x04 \x01(\tR\bcurrency\x12%\n" +
+	"\x0epayment_status\x18\x05 \x01(\tR\rpaymentStatus\"\xb2\x01\n" +
+	"\x16PaymentCallbackRequest\x12\x1d\n" +
+	"\n" +
+	"payment_no\x18\x01 \x01(\tR\tpaymentNo\x12(\n" +
+	"\x10channel_trade_no\x18\x02 \x01(\tR\x0echannelTradeNo\x12\x16\n" +
+	"\x06result\x18\x03 \x01(\tR\x06result\x12\x16\n" +
+	"\x06amount\x18\x04 \x01(\x01R\x06amount\x12\x1f\n" +
+	"\voccurred_at\x18\x05 \x01(\tR\n" +
+	"occurredAt\"\xce\x01\n" +
+	"\x14PaymentCallbackReply\x12\x1d\n" +
+	"\n" +
+	"payment_id\x18\x01 \x01(\tR\tpaymentId\x12\x1d\n" +
+	"\n" +
+	"payment_no\x18\x02 \x01(\tR\tpaymentNo\x12%\n" +
+	"\x0epayment_status\x18\x03 \x01(\tR\rpaymentStatus\x12\x19\n" +
+	"\border_id\x18\x04 \x01(\tR\aorderId\x12\x16\n" +
+	"\x06amount\x18\x05 \x01(\x01R\x06amount\x12\x1e\n" +
+	"\n" +
+	"duplicated\x18\x06 \x01(\bR\n" +
+	"duplicated\"\x9d\x01\n" +
+	"\x13SubmitReviewRequest\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\tR\aorderId\x12\x16\n" +
+	"\x06rating\x18\x02 \x01(\x05R\x06rating\x12\x1b\n" +
+	"\ttag_codes\x18\x03 \x03(\tR\btagCodes\x12\x18\n" +
+	"\acomment\x18\x04 \x01(\tR\acomment\x12\x1c\n" +
+	"\tanonymous\x18\x05 \x01(\bR\tanonymous\"S\n" +
+	"\x11SubmitReviewReply\x12\x1b\n" +
+	"\treview_id\x18\x01 \x01(\tR\breviewId\x12!\n" +
+	"\fsubmitted_at\x18\x02 \x01(\tR\vsubmittedAt\"q\n" +
+	"\x17ListOrderHistoryRequest\x12\x16\n" +
+	"\x06cursor\x18\x01 \x01(\tR\x06cursor\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12!\n" +
+	"\fstatus_group\x18\x03 \x01(\tR\vstatusGroup\"\xdf\x02\n" +
+	"\x10OrderHistoryItem\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\tR\aorderId\x12\x19\n" +
+	"\border_no\x18\x02 \x01(\tR\aorderNo\x12\x1f\n" +
+	"\vorigin_name\x18\x03 \x01(\tR\n" +
+	"originName\x12)\n" +
+	"\x10destination_name\x18\x04 \x01(\tR\x0fdestinationName\x12!\n" +
+	"\fdeparture_at\x18\x05 \x01(\tR\vdepartureAt\x120\n" +
+	"\x14vehicle_display_name\x18\x06 \x01(\tR\x12vehicleDisplayName\x12\x1f\n" +
+	"\vpaid_amount\x18\a \x01(\x01R\n" +
+	"paidAmount\x12\x1a\n" +
+	"\bcurrency\x18\b \x01(\tR\bcurrency\x12\x16\n" +
+	"\x06status\x18\t \x01(\tR\x06status\x12\x1f\n" +
+	"\vstatus_text\x18\n" +
+	" \x01(\tR\n" +
+	"statusText\"\x8b\x01\n" +
+	"\x15ListOrderHistoryReply\x126\n" +
+	"\x05items\x18\x01 \x03(\v2 .ridehailing.v1.OrderHistoryItemR\x05items\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor\x12\x19\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore2\xbc\f\n" +
+	"\vRideService\x12\x8a\x01\n" +
+	"\fEstimateFare\x12#.ridehailing.v1.EstimateFareRequest\x1a!.ridehailing.v1.EstimateFareReply\"2\x82\xd3\xe4\x93\x02,:\x01*\"'/api/v1/passenger/fare-options/estimate\x12x\n" +
+	"\vCreateOrder\x12\".ridehailing.v1.CreateOrderRequest\x1a .ridehailing.v1.CreateOrderReply\"#\x82\xd3\xe4\x93\x02\x1d:\x01*\"\x18/api/v1/passenger/orders\x12\x84\x01\n" +
+	"\x10ListOrderHistory\x12'.ridehailing.v1.ListOrderHistoryRequest\x1a%.ridehailing.v1.ListOrderHistoryReply\" \x82\xd3\xe4\x93\x02\x1a\x12\x18/api/v1/passenger/orders\x12\x8e\x01\n" +
+	"\x10GetOrderLiveView\x12\x1f.ridehailing.v1.GetOrderRequest\x1a\".ridehailing.v1.OrderLiveViewReply\"5\x82\xd3\xe4\x93\x02/\x12-/api/v1/passenger/orders/{order_id}/live-view\x12\x93\x01\n" +
+	"\x12GetOrderSettlement\x12\x1f.ridehailing.v1.GetOrderRequest\x1a\x1f.ridehailing.v1.SettlementReply\";\x82\xd3\xe4\x93\x025\x123/api/v1/passenger/orders/{order_id}/settlement-view\x12\x8a\x01\n" +
+	"\vCancelOrder\x12\".ridehailing.v1.CancelOrderRequest\x1a .ridehailing.v1.CancelOrderReply\"5\x82\xd3\xe4\x93\x02/:\x01*\"*/api/v1/passenger/orders/{order_id}/cancel\x12\x8f\x01\n" +
+	"\x11StreamOrderEvents\x12(.ridehailing.v1.StreamOrderEventsRequest\x1a\x1a.ridehailing.v1.OrderEvent\"2\x82\xd3\xe4\x93\x02,\x12*/api/v1/passenger/orders/{order_id}/events0\x01\x12\xa4\x01\n" +
+	"\x13ExecuteOrderCommand\x12*.ridehailing.v1.ExecuteOrderCommandRequest\x1a(.ridehailing.v1.ExecuteOrderCommandReply\"7\x82\xd3\xe4\x93\x021:\x01*\",/api/v1/passenger/orders/{order_id}/commands\x12\x92\x01\n" +
+	"\rCreatePayment\x12$.ridehailing.v1.CreatePaymentRequest\x1a\".ridehailing.v1.CreatePaymentReply\"7\x82\xd3\xe4\x93\x021:\x01*\",/api/v1/passenger/orders/{order_id}/payments\x12\x8e\x01\n" +
+	"\fSubmitReview\x12#.ridehailing.v1.SubmitReviewRequest\x1a!.ridehailing.v1.SubmitReviewReply\"6\x82\xd3\xe4\x93\x020:\x01*\"+/api/v1/passenger/orders/{order_id}/reviews\x12\x8b\x01\n" +
+	"\x15HandlePaymentCallback\x12&.ridehailing.v1.PaymentCallbackRequest\x1a$.ridehailing.v1.PaymentCallbackReply\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/api/v1/payments/callbackBCZAgithub.com/lijayin-0202/radish-ride-service/api/ridehailing/v1;v1b\x06proto3"
 
-var file_api_ridehailing_v1_ridehailing_proto_goTypes = []any{}
+var (
+	file_api_ridehailing_v1_ridehailing_proto_rawDescOnce sync.Once
+	file_api_ridehailing_v1_ridehailing_proto_rawDescData []byte
+)
+
+func file_api_ridehailing_v1_ridehailing_proto_rawDescGZIP() []byte {
+	file_api_ridehailing_v1_ridehailing_proto_rawDescOnce.Do(func() {
+		file_api_ridehailing_v1_ridehailing_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_api_ridehailing_v1_ridehailing_proto_rawDesc), len(file_api_ridehailing_v1_ridehailing_proto_rawDesc)))
+	})
+	return file_api_ridehailing_v1_ridehailing_proto_rawDescData
+}
+
+var file_api_ridehailing_v1_ridehailing_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
+var file_api_ridehailing_v1_ridehailing_proto_goTypes = []any{
+	(*Place)(nil),                      // 0: ridehailing.v1.Place
+	(*RouteSummary)(nil),               // 1: ridehailing.v1.RouteSummary
+	(*FareItem)(nil),                   // 2: ridehailing.v1.FareItem
+	(*Fare)(nil),                       // 3: ridehailing.v1.Fare
+	(*AppliedCoupon)(nil),              // 4: ridehailing.v1.AppliedCoupon
+	(*EstimateFareRequest)(nil),        // 5: ridehailing.v1.EstimateFareRequest
+	(*ServiceQuote)(nil),               // 6: ridehailing.v1.ServiceQuote
+	(*EstimateFareReply)(nil),          // 7: ridehailing.v1.EstimateFareReply
+	(*CreateOrderRequest)(nil),         // 8: ridehailing.v1.CreateOrderRequest
+	(*MatchingInfo)(nil),               // 9: ridehailing.v1.MatchingInfo
+	(*CreateOrderReply)(nil),           // 10: ridehailing.v1.CreateOrderReply
+	(*GetOrderRequest)(nil),            // 11: ridehailing.v1.GetOrderRequest
+	(*VehicleInfo)(nil),                // 12: ridehailing.v1.VehicleInfo
+	(*PickupInfo)(nil),                 // 13: ridehailing.v1.PickupInfo
+	(*TripProgress)(nil),               // 14: ridehailing.v1.TripProgress
+	(*LatestLocation)(nil),             // 15: ridehailing.v1.LatestLocation
+	(*DispatchSummary)(nil),            // 16: ridehailing.v1.DispatchSummary
+	(*BoardingVerification)(nil),       // 17: ridehailing.v1.BoardingVerification
+	(*SafetyEvent)(nil),                // 18: ridehailing.v1.SafetyEvent
+	(*OrderLiveViewReply)(nil),         // 19: ridehailing.v1.OrderLiveViewReply
+	(*SettlementPayment)(nil),          // 20: ridehailing.v1.SettlementPayment
+	(*SettlementReview)(nil),           // 21: ridehailing.v1.SettlementReview
+	(*SettlementReply)(nil),            // 22: ridehailing.v1.SettlementReply
+	(*CancelOrderRequest)(nil),         // 23: ridehailing.v1.CancelOrderRequest
+	(*CancelOrderReply)(nil),           // 24: ridehailing.v1.CancelOrderReply
+	(*StreamOrderEventsRequest)(nil),   // 25: ridehailing.v1.StreamOrderEventsRequest
+	(*OrderEvent)(nil),                 // 26: ridehailing.v1.OrderEvent
+	(*ExecuteOrderCommandRequest)(nil), // 27: ridehailing.v1.ExecuteOrderCommandRequest
+	(*RefundPreview)(nil),              // 28: ridehailing.v1.RefundPreview
+	(*ExecuteOrderCommandReply)(nil),   // 29: ridehailing.v1.ExecuteOrderCommandReply
+	(*CreatePaymentRequest)(nil),       // 30: ridehailing.v1.CreatePaymentRequest
+	(*CreatePaymentReply)(nil),         // 31: ridehailing.v1.CreatePaymentReply
+	(*PaymentCallbackRequest)(nil),     // 32: ridehailing.v1.PaymentCallbackRequest
+	(*PaymentCallbackReply)(nil),       // 33: ridehailing.v1.PaymentCallbackReply
+	(*SubmitReviewRequest)(nil),        // 34: ridehailing.v1.SubmitReviewRequest
+	(*SubmitReviewReply)(nil),          // 35: ridehailing.v1.SubmitReviewReply
+	(*ListOrderHistoryRequest)(nil),    // 36: ridehailing.v1.ListOrderHistoryRequest
+	(*OrderHistoryItem)(nil),           // 37: ridehailing.v1.OrderHistoryItem
+	(*ListOrderHistoryReply)(nil),      // 38: ridehailing.v1.ListOrderHistoryReply
+}
 var file_api_ridehailing_v1_ridehailing_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	2,  // 0: ridehailing.v1.Fare.breakdown:type_name -> ridehailing.v1.FareItem
+	0,  // 1: ridehailing.v1.EstimateFareRequest.origin:type_name -> ridehailing.v1.Place
+	0,  // 2: ridehailing.v1.EstimateFareRequest.destination:type_name -> ridehailing.v1.Place
+	3,  // 3: ridehailing.v1.ServiceQuote.fare:type_name -> ridehailing.v1.Fare
+	1,  // 4: ridehailing.v1.EstimateFareReply.route:type_name -> ridehailing.v1.RouteSummary
+	6,  // 5: ridehailing.v1.EstimateFareReply.quotes:type_name -> ridehailing.v1.ServiceQuote
+	4,  // 6: ridehailing.v1.EstimateFareReply.applied_coupon:type_name -> ridehailing.v1.AppliedCoupon
+	9,  // 7: ridehailing.v1.CreateOrderReply.matching:type_name -> ridehailing.v1.MatchingInfo
+	1,  // 8: ridehailing.v1.CreateOrderReply.route_summary:type_name -> ridehailing.v1.RouteSummary
+	3,  // 9: ridehailing.v1.CreateOrderReply.estimated_fare:type_name -> ridehailing.v1.Fare
+	12, // 10: ridehailing.v1.OrderLiveViewReply.vehicle:type_name -> ridehailing.v1.VehicleInfo
+	13, // 11: ridehailing.v1.OrderLiveViewReply.pickup:type_name -> ridehailing.v1.PickupInfo
+	1,  // 12: ridehailing.v1.OrderLiveViewReply.route:type_name -> ridehailing.v1.RouteSummary
+	14, // 13: ridehailing.v1.OrderLiveViewReply.trip_progress:type_name -> ridehailing.v1.TripProgress
+	3,  // 14: ridehailing.v1.OrderLiveViewReply.fare:type_name -> ridehailing.v1.Fare
+	15, // 15: ridehailing.v1.OrderLiveViewReply.location:type_name -> ridehailing.v1.LatestLocation
+	16, // 16: ridehailing.v1.OrderLiveViewReply.dispatch:type_name -> ridehailing.v1.DispatchSummary
+	17, // 17: ridehailing.v1.OrderLiveViewReply.boarding:type_name -> ridehailing.v1.BoardingVerification
+	18, // 18: ridehailing.v1.OrderLiveViewReply.safety_events:type_name -> ridehailing.v1.SafetyEvent
+	2,  // 19: ridehailing.v1.SettlementReply.fee_items:type_name -> ridehailing.v1.FareItem
+	20, // 20: ridehailing.v1.SettlementReply.payment:type_name -> ridehailing.v1.SettlementPayment
+	21, // 21: ridehailing.v1.SettlementReply.review:type_name -> ridehailing.v1.SettlementReview
+	28, // 22: ridehailing.v1.ExecuteOrderCommandReply.refund_preview:type_name -> ridehailing.v1.RefundPreview
+	37, // 23: ridehailing.v1.ListOrderHistoryReply.items:type_name -> ridehailing.v1.OrderHistoryItem
+	5,  // 24: ridehailing.v1.RideService.EstimateFare:input_type -> ridehailing.v1.EstimateFareRequest
+	8,  // 25: ridehailing.v1.RideService.CreateOrder:input_type -> ridehailing.v1.CreateOrderRequest
+	36, // 26: ridehailing.v1.RideService.ListOrderHistory:input_type -> ridehailing.v1.ListOrderHistoryRequest
+	11, // 27: ridehailing.v1.RideService.GetOrderLiveView:input_type -> ridehailing.v1.GetOrderRequest
+	11, // 28: ridehailing.v1.RideService.GetOrderSettlement:input_type -> ridehailing.v1.GetOrderRequest
+	23, // 29: ridehailing.v1.RideService.CancelOrder:input_type -> ridehailing.v1.CancelOrderRequest
+	25, // 30: ridehailing.v1.RideService.StreamOrderEvents:input_type -> ridehailing.v1.StreamOrderEventsRequest
+	27, // 31: ridehailing.v1.RideService.ExecuteOrderCommand:input_type -> ridehailing.v1.ExecuteOrderCommandRequest
+	30, // 32: ridehailing.v1.RideService.CreatePayment:input_type -> ridehailing.v1.CreatePaymentRequest
+	34, // 33: ridehailing.v1.RideService.SubmitReview:input_type -> ridehailing.v1.SubmitReviewRequest
+	32, // 34: ridehailing.v1.RideService.HandlePaymentCallback:input_type -> ridehailing.v1.PaymentCallbackRequest
+	7,  // 35: ridehailing.v1.RideService.EstimateFare:output_type -> ridehailing.v1.EstimateFareReply
+	10, // 36: ridehailing.v1.RideService.CreateOrder:output_type -> ridehailing.v1.CreateOrderReply
+	38, // 37: ridehailing.v1.RideService.ListOrderHistory:output_type -> ridehailing.v1.ListOrderHistoryReply
+	19, // 38: ridehailing.v1.RideService.GetOrderLiveView:output_type -> ridehailing.v1.OrderLiveViewReply
+	22, // 39: ridehailing.v1.RideService.GetOrderSettlement:output_type -> ridehailing.v1.SettlementReply
+	24, // 40: ridehailing.v1.RideService.CancelOrder:output_type -> ridehailing.v1.CancelOrderReply
+	26, // 41: ridehailing.v1.RideService.StreamOrderEvents:output_type -> ridehailing.v1.OrderEvent
+	29, // 42: ridehailing.v1.RideService.ExecuteOrderCommand:output_type -> ridehailing.v1.ExecuteOrderCommandReply
+	31, // 43: ridehailing.v1.RideService.CreatePayment:output_type -> ridehailing.v1.CreatePaymentReply
+	35, // 44: ridehailing.v1.RideService.SubmitReview:output_type -> ridehailing.v1.SubmitReviewReply
+	33, // 45: ridehailing.v1.RideService.HandlePaymentCallback:output_type -> ridehailing.v1.PaymentCallbackReply
+	35, // [35:46] is the sub-list for method output_type
+	24, // [24:35] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_api_ridehailing_v1_ridehailing_proto_init() }
@@ -46,12 +3500,13 @@ func file_api_ridehailing_v1_ridehailing_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_ridehailing_v1_ridehailing_proto_rawDesc), len(file_api_ridehailing_v1_ridehailing_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   0,
+			NumMessages:   39,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_api_ridehailing_v1_ridehailing_proto_goTypes,
 		DependencyIndexes: file_api_ridehailing_v1_ridehailing_proto_depIdxs,
+		MessageInfos:      file_api_ridehailing_v1_ridehailing_proto_msgTypes,
 	}.Build()
 	File_api_ridehailing_v1_ridehailing_proto = out.File
 	file_api_ridehailing_v1_ridehailing_proto_goTypes = nil

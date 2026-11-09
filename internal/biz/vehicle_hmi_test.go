@@ -21,7 +21,7 @@ type fakeVehicleHMIRepo struct {
 	pendingCommandCalls       int
 	activeCommandCalls        int
 	boardingVerificationCalls int
-	lastBoardingVerification  *BoardingVerification
+	lastBoardingVerification  *BoardingVerificationAttempt
 }
 
 func (r *fakeVehicleHMIRepo) ListPendingCommands(context.Context, int64, string) ([]*VehicleCommand, error) {
@@ -55,7 +55,7 @@ func (r *fakeVehicleHMIRepo) UpdateCommandStatus(_ context.Context, _ string, _,
 	}
 	return r.command, nil
 }
-func (r *fakeVehicleHMIRepo) CreateBoardingVerification(_ context.Context, item *BoardingVerification) error {
+func (r *fakeVehicleHMIRepo) CreateBoardingVerification(_ context.Context, item *BoardingVerificationAttempt) error {
 	r.boardingVerificationCalls++
 	r.lastBoardingVerification = item
 	return nil
@@ -165,7 +165,7 @@ func TestHMIViewReadsCommandsWithoutMarkingThemSent(t *testing.T) {
 
 func TestVerifyBoardingRejectsMissingCredentialHash(t *testing.T) {
 	uc := NewVehicleHMIUsecase(&fakeVehicleHMIRepo{}, log.DefaultLogger)
-	err := uc.VerifyBoarding(t.Context(), &BoardingVerification{OrderID: 1, VerificationType: 1})
+	err := uc.VerifyBoarding(t.Context(), &BoardingVerificationAttempt{OrderID: 1, VerificationType: 1})
 	if !errors.Is(err, ErrInvalidVehicleInput) {
 		t.Fatalf("VerifyBoarding() error = %v, want ErrInvalidVehicleInput", err)
 	}
@@ -174,7 +174,7 @@ func TestVerifyBoardingRejectsMissingCredentialHash(t *testing.T) {
 func TestVerifyBoardingPersistsFailedAttempt(t *testing.T) {
 	repo := &fakeVehicleHMIRepo{}
 	uc := NewVehicleHMIUsecase(repo, log.DefaultLogger)
-	item := &BoardingVerification{
+	item := &BoardingVerificationAttempt{
 		OrderID:          1001,
 		VerificationType: 3,
 		CredentialHash:   "sha256:test-credential",

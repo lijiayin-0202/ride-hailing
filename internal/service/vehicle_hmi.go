@@ -54,7 +54,7 @@ func (s *VehicleHMIService) ReportCommandResult(ctx context.Context, req *v1.Rep
 
 // VerifyBoarding 记录手机号、NFC 或动态码的上车核验结果。
 func (s *VehicleHMIService) VerifyBoarding(ctx context.Context, req *v1.VerifyBoardingRequest) (*v1.VerifyBoardingResponse, error) {
-	item := &biz.BoardingVerification{OrderID: req.GetOrderId(), VerificationType: req.GetVerificationType(), CredentialHash: req.GetCredentialHash(), Succeeded: req.GetSucceeded(), FailureReason: req.GetFailureReason()}
+	item := &biz.BoardingVerificationAttempt{OrderID: req.GetOrderId(), VerificationType: req.GetVerificationType(), CredentialHash: req.GetCredentialHash(), Succeeded: req.GetSucceeded(), FailureReason: req.GetFailureReason()}
 	if err := s.uc.VerifyBoarding(ctx, item); err != nil {
 		return nil, s.toServiceError(ctx, "verify_boarding", err)
 	}

@@ -1,23 +1,67 @@
+// 数据访问层（repo）。
 package data
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
+	"fmt"
+	"os"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/google/uuid"
 	"github.com/google/wire"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
 	"github.com/lijayin-0202/radish-ride-service/internal/biz"
 	"github.com/lijayin-0202/radish-ride-service/internal/conf"
 	dataKafka "github.com/lijayin-0202/radish-ride-service/internal/data/kafka"
+	"github.com/lijayin-0202/radish-ride-service/pkg/cache"
 )
 
+// ProviderSet 集中管理模块1、模块3 与订单模块的数据层实现。
 var ProviderSet = wire.NewSet(
 	NewData,
+	// 订单、报价、支付与派车记录（GORM 实现）。
+	NewRideRepo,
+	// 模块1 用户账号与个人中心。
+	NewPassengerRepo,
+	NewPassengerAuthRecordRepo,
+	NewAddressRepo,
+	NewCouponRepo,
+	NewPointRepo,
+	NewNotificationRepo,
+	NewRealNameRepo,
+	NewLoginDeviceRepo,
+	NewLoginRecordRepo,
+	NewEmergencyContactRepo,
+	NewSmsCodeStore,
+	NewSmsSender,
+	NewTokenIssuer,
+	// 模块3 运营区域、站点与派单。
+	NewDispatchRepository,
+	NewServiceAreaRepository,
+	NewStationRepository,
+	NewVehicleRepository,
+	NewDispatchOutboxDispatcher,
+	NewOrderDispatchOutboxDispatcher,
+	NewDispatchTimeoutWorker,
+	NewDispatchReassignmentDispatcher,
+	NewConfiguredOrderQueryGateway,
+	// 车辆 HMI PostgreSQL/Kafka 仓储。
 	NewVehicleHMIRepo,
+	wire.Bind(new(biz.ServiceAreaRepository), new(*ServiceAreaRepository)),
+	wire.Bind(new(biz.ServiceAreaAdminRepository), new(*ServiceAreaRepository)),
+	wire.Bind(new(biz.StationRepository), new(*StationRepository)),
+	wire.Bind(new(biz.VehicleRepository), new(*VehicleRepository)),
+	wire.Bind(new(biz.DispatchRecordRepository), new(*DispatchRepository)),
+	wire.Bind(new(biz.CandidateVehicleRepository), new(*DispatchRepository)),
+	wire.Bind(new(biz.DispatchStateRepository), new(*DispatchRepository)),
+	wire.Bind(new(biz.PendingDispatchAttemptRepository), new(*DispatchRepository)),
 	wire.Bind(new(biz.VehicleHMIRepo), new(*VehicleHMIRepo)),
 )
 
@@ -26,212 +70,194 @@ var (
 	ErrKafkaUnavailable    = errors.New("kafka producer is unavailable")
 )
 
-// Data 集中管理 PostgreSQL、Kafka 和日志等数据层资源。
+// Data 保存共享的 PostgreSQL、Redis 与派单 ID 生成资源。
 type Data struct {
-	db     *pgxpool.Pool
-	writer *dataKafka.Writer
-	log    *log.Helper
+	// db 供模块1仓储使用；pool 供模块3仓储使用，二者指向同一连接池。
+	db                  *pgxpool.Pool
+	pool                *pgxpool.Pool
+	dispatchIDGenerator biz.DispatchIDGenerator
+	rdb                 redis.UniversalClient
+	vehicleHMIWriter    *dataKafka.Writer
+	log                 *log.Helper
+
+	// gormDB 供订单/报价/支付等 GORM 仓储使用，与 pool 指向同一个数据库。
+	gormDB   *gorm.DB
+	phoneKey string
+
+	columnMu    sync.RWMutex
+	columnCache map[string]bool
 }
 
-// NewData 根据配置初始化数据层连接，并返回统一清理函数。
+// NewData 初始化数据层连接，返回清理函数用于优雅退出。
 func NewData(c *conf.Data, logger log.Logger) (*Data, func(), error) {
-	data := &Data{log: log.NewHelper(logger)}
-	if c.GetDatabase().GetDriver() == "postgres" || c.GetDatabase().GetDriver() == "postgresql" {
-		pool, err := pgxpool.New(context.TODO(), c.GetDatabase().GetSource())
-		if err != nil {
-			return nil, nil, err
+	helper := log.NewHelper(log.With(logger, "module", "data"))
+
+	driver := strings.ToLower(strings.TrimSpace(c.GetDatabase().GetDriver()))
+	if driver != "" && driver != "postgres" && driver != "postgresql" && driver != "pgx" {
+		return nil, nil, fmt.Errorf("不支持的数据库驱动 %q，本项目主库固定为 PostgreSQL", driver)
+	}
+
+	dsn := conf.DatabaseSource()
+	if dsn == "" {
+		dsn = conf.ExpandEnvPlaceholder(c.GetDatabase().GetSource())
+	}
+	if dsn == "" {
+		return nil, nil, fmt.Errorf("数据库连接串为空：请注入环境变量 %s（configs/config.yaml 仅保留 ${%s} 占位）",
+			conf.EnvDatabaseSource, conf.EnvDatabaseSource)
+	}
+
+	phoneKey := conf.ExpandEnvPlaceholder(c.GetSecurity().GetContactPhoneKey())
+	if len(phoneKey) < 32 {
+		phoneKey = conf.ContactPhoneKey()
+	}
+	if len(phoneKey) < 32 {
+		return nil, nil, fmt.Errorf("联系人手机号加密密钥至少需要 32 字节：请注入环境变量 RIDE_DATA_SECURITY_CONTACT_PHONE_KEY")
+	}
+
+	poolCfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return nil, nil, fmt.Errorf("解析数据库连接串失败: %w", err)
+	}
+	if poolCfg.MaxConns < 4 {
+		poolCfg.MaxConns = 8
+	}
+	poolCfg.MaxConnLifetime = time.Hour
+	poolCfg.HealthCheckPeriod = time.Minute
+
+	pool, err := pgxpool.NewWithConfig(context.Background(), poolCfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("创建数据库连接池失败: %w", err)
+	}
+	pingCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	if err := pool.Ping(pingCtx); err != nil {
+		pool.Close()
+		return nil, nil, fmt.Errorf("数据库连接不可用: %w", err)
+	}
+
+	// 订单模块的仓储基于 GORM，复用同一个 DSN 建立独立连接池。
+	gormDB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{TranslateError: true})
+	if err != nil {
+		pool.Close()
+		return nil, nil, fmt.Errorf("初始化 GORM 连接失败: %w", err)
+	}
+	sqlDB, err := gormDB.DB()
+	if err != nil {
+		pool.Close()
+		return nil, nil, fmt.Errorf("获取 GORM 底层连接失败: %w", err)
+	}
+	sqlDB.SetMaxIdleConns(4)
+	sqlDB.SetMaxOpenConns(16)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+
+	dispatchIDGenerator, err := NewDispatchIDGenerator()
+	if err != nil {
+		_ = sqlDB.Close()
+		pool.Close()
+		return nil, nil, fmt.Errorf("配置派单 ID 生成器失败: %w", err)
+	}
+
+	d := &Data{
+		db:                  pool,
+		pool:                pool,
+		dispatchIDGenerator: dispatchIDGenerator,
+		log:                 helper,
+		gormDB:              gormDB,
+		phoneKey:            phoneKey,
+		columnCache:         map[string]bool{},
+	}
+	if brokers := kafkaBrokersFromEnv(); len(brokers) > 0 {
+		d.vehicleHMIWriter = dataKafka.NewWriter(brokers)
+	}
+
+	redisAddr := strings.TrimSpace(c.GetRedis().GetAddr())
+	useCluster := c.GetRedis().GetUseCluster()
+	clusterAddrs := c.GetRedis().GetClusterAddrs()
+	if redisAddr != "" || (useCluster && len(clusterAddrs) > 0) {
+		rdb := cache.New(cache.Config{
+			Addr:         redisAddr,
+			ClusterAddrs: clusterAddrs,
+			UseCluster:   useCluster,
+			Password:     c.GetRedis().GetPassword(),
+			DB:           int(c.GetRedis().GetDb()),
+			ReadTimeout:  c.GetRedis().GetReadTimeout().AsDuration(),
+			WriteTimeout: c.GetRedis().GetWriteTimeout().AsDuration(),
+		})
+		redisCtx, redisCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		if err := rdb.Ping(redisCtx).Err(); err != nil {
+			helper.Warnf("Redis 不可用（addr=%q cluster=%v），验证码将使用进程内存储: %v", redisAddr, clusterAddrs, err)
+			_ = rdb.Close()
+		} else {
+			d.rdb = rdb
 		}
-		data.db = pool
+		redisCancel()
 	}
-	if brokers := c.GetKafka().GetBrokers(); len(brokers) > 0 {
-		data.writer = dataKafka.NewWriter(brokers)
-	}
+
 	cleanup := func() {
-		if data.writer != nil {
-			if err := data.writer.Close(); err != nil {
-				data.log.Errorw("message", "close kafka writer failed", "error", err)
+		if d.vehicleHMIWriter != nil {
+			if err := d.vehicleHMIWriter.Close(); err != nil {
+				helper.Errorf("关闭车辆 HMI Kafka 生产者失败: %v", err)
 			}
 		}
-		if data.db != nil {
-			data.db.Close()
+		if d.rdb != nil {
+			_ = d.rdb.Close()
 		}
-		data.log.Info("closing the data resources")
-	}
-	return data, cleanup, nil
-}
-
-// VehicleHMIRepo 实现车辆 HMI 业务所需的 PostgreSQL 和 Kafka 操作。
-type VehicleHMIRepo struct {
-	data *Data
-}
-
-// NewVehicleHMIRepo 创建车辆 HMI 数据仓库。
-func NewVehicleHMIRepo(data *Data) *VehicleHMIRepo {
-	return &VehicleHMIRepo{data: data}
-}
-
-// pool 获取数据库连接池，未配置 PostgreSQL 时返回明确错误。
-func (r *VehicleHMIRepo) pool() (*pgxpool.Pool, error) {
-	if r.data.db == nil {
-		return nil, ErrDatabaseUnavailable
-	}
-	return r.data.db, nil
-}
-
-// CreateBoardingVerification 在事务中保存核验记录并推进成功订单状态。
-func (r *VehicleHMIRepo) CreateBoardingVerification(ctx context.Context, item *biz.BoardingVerification) error {
-	pool, err := r.pool()
-	if err != nil {
-		return err
-	}
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	result := 0
-	// 核验成功记录为 1，失败记录为 0。
-	if item.Succeeded {
-		result = 1
-	}
-	if _, err = tx.Exec(ctx, `INSERT INTO robotaxi.boarding_verifications (order_id, verification_type, credential_hash, attempt_result, failure_reason, verified_at) VALUES ($1, $2, $3, $4, $5, $6)`, item.OrderID, item.VerificationType, item.CredentialHash, result, item.FailureReason, item.VerifiedAt); err != nil {
-		return err
-	}
-	// 只有核验成功才把订单从待上车状态推进到行程中。
-	if item.Succeeded {
-		command, updateErr := tx.Exec(ctx, `UPDATE robotaxi.trip_orders SET status = 4, boarded_at = $2, updated_at = $2 WHERE id = $1 AND status = 3`, item.OrderID, item.VerifiedAt)
-		if updateErr != nil {
-			return updateErr
+		if err := sqlDB.Close(); err != nil {
+			helper.Errorf("关闭 GORM 连接失败: %v", err)
 		}
-		// 未更新到唯一订单说明订单状态已变化或订单不存在，禁止继续写状态日志。
-		if command.RowsAffected() != 1 {
-			return biz.ErrInvalidCommandTransition
-		}
-		if _, err = tx.Exec(ctx, `INSERT INTO robotaxi.trip_status_logs (order_id, previous_status, current_status, change_source, created_at) VALUES ($1, 3, 4, 2, $2)`, item.OrderID, item.VerifiedAt); err != nil {
-			return err
+		pool.Close()
+		helper.Info("closing the data resources")
+	}
+	return d, cleanup, nil
+}
+
+func kafkaBrokersFromEnv() []string {
+	parts := strings.Split(os.Getenv("RIDE_KAFKA_BROKERS"), ",")
+	brokers := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if value := strings.TrimSpace(part); value != "" {
+			brokers = append(brokers, value)
 		}
 	}
-	return tx.Commit(ctx)
+	return brokers
 }
 
-// CreateTelemetry 在同一事务内更新车辆快照并写入位置、状态和遥测日志。
-func (r *VehicleHMIRepo) CreateTelemetry(ctx context.Context, item *biz.TelemetryReport) error {
-	pool, err := r.pool()
-	if err != nil {
-		return err
+// hasColumn 探测表字段是否存在。跨模块表（vehicles / dispatch_records 等）的字段名
+// 尚未由对应模块冻结，探测后再拼查询可以避免试算整体失败。
+func (d *Data) hasColumn(table, column string) bool {
+	key := table + "." + column
+	d.columnMu.RLock()
+	value, ok := d.columnCache[key]
+	d.columnMu.RUnlock()
+	if ok {
+		return value
 	}
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	var previousStatus int32
-	if err = tx.QueryRow(ctx, `SELECT operation_status FROM robotaxi.vehicles WHERE id = $1 FOR UPDATE`, item.VehicleID).Scan(&previousStatus); err != nil {
-		return err
-	}
-	if _, err = tx.Exec(ctx, `UPDATE robotaxi.vehicles SET operation_status = $2, online_status = $3, battery_percent = $4, current_longitude = $5, current_latitude = $6, software_version = $7, last_reported_at = $8, updated_at = $8 WHERE id = $1`, item.VehicleID, item.OperationStatus, item.OnlineStatus, item.BatteryPercent, item.Longitude, item.Latitude, item.SoftwareVersion, item.ReportedAt); err != nil {
-		return err
-	}
-	// 车辆运行状态发生变化时才追加状态变更日志。
-	if previousStatus != item.OperationStatus {
-		if _, err = tx.Exec(ctx, `INSERT INTO robotaxi.vehicle_status_logs (vehicle_id, previous_status, current_status, related_order_id, change_source, changed_at) VALUES ($1, $2, $3, NULLIF($4, 0), 1, $5)`, item.VehicleID, previousStatus, item.OperationStatus, item.RelatedOrderID, item.ReportedAt); err != nil {
-			return err
-		}
-	}
-	if _, err = tx.Exec(ctx, `INSERT INTO robotaxi.vehicle_location_logs (vehicle_id, order_id, longitude, latitude, heading_degree, speed_kmh, position_accuracy_m, reported_at) VALUES ($1, NULLIF($2, 0), $3, $4, $5, $6, $7, $8)`, item.VehicleID, item.RelatedOrderID, item.Longitude, item.Latitude, item.HeadingDegree, item.SpeedKMH, item.PositionAccuracyM, item.ReportedAt); err != nil {
-		return err
-	}
-	// 遥测关联有效订单时，同时写入行程轨迹日志。
-	if item.RelatedOrderID > 0 {
-		if _, err = tx.Exec(ctx, `INSERT INTO robotaxi.trip_location_logs (order_id, vehicle_id, longitude, latitude, speed_kmh, route_progress_percent, remaining_distance_km, eta_at, reported_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, item.RelatedOrderID, item.VehicleID, item.Longitude, item.Latitude, item.SpeedKMH, item.RouteProgress, item.RemainingDistanceKM, item.ETAAt, item.ReportedAt); err != nil {
-			return err
-		}
-	}
-	warningCodes, err := json.Marshal(item.WarningCodes)
-	if err != nil {
-		return err
-	}
-	if _, err = tx.Exec(ctx, `INSERT INTO robotaxi.vehicle_telemetry_logs (vehicle_id, order_id, battery_percent, remaining_range_km, door_status, seat_status, cabin_temperature, network_signal, warning_codes, reported_at) VALUES ($1, NULLIF($2, 0), $3, $4, $5::jsonb, $6::jsonb, $7, $8, $9::jsonb, $10)`, item.VehicleID, item.RelatedOrderID, item.BatteryPercent, item.RemainingRangeKM, string(defaultJSON(item.DoorStatus)), string(defaultJSON(item.SeatStatus)), item.CabinTemperature, item.NetworkSignal, string(warningCodes), item.ReportedAt); err != nil {
-		return err
-	}
-	return tx.Commit(ctx)
+	var count int64
+	err := d.gormDB.Table("information_schema.columns").
+		Where("table_name = ? AND column_name = ?", table, column).
+		Count(&count).Error
+	exists := err == nil && count > 0
+	d.columnMu.Lock()
+	d.columnCache[key] = exists
+	d.columnMu.Unlock()
+	return exists
 }
 
-// CreateFault 保存车辆故障等级、描述和现场快照。
-func (r *VehicleHMIRepo) CreateFault(ctx context.Context, item *biz.FaultReport) error {
-	pool, err := r.pool()
-	if err != nil {
-		return err
-	}
-	_, err = pool.Exec(ctx, `INSERT INTO robotaxi.vehicle_faults (fault_no, vehicle_id, related_order_id, fault_code, fault_level, fault_description, fault_data, status, occurred_at, created_at, updated_at) VALUES ($1, $2, NULLIF($3, 0), $4, $5, $6, $7::jsonb, $8, $9, $10, $10)`, item.FaultNo, item.VehicleID, item.RelatedOrderID, item.FaultCode, item.FaultLevel, item.FaultDescription, string(defaultJSON(item.FaultData)), item.Status, item.OccurredAt, item.ReportedAt)
-	return err
+// hasTable 探测表是否存在，用于跨模块只读聚合的降级处理。
+func (d *Data) hasTable(table string) bool {
+	return d.hasColumn(table, "id")
 }
 
-// GetHMIView 聚合订单、待执行指令和未关闭安全事件。
-func (r *VehicleHMIRepo) GetHMIView(ctx context.Context, orderID int64) (*biz.HMIView, error) {
-	pool, err := r.pool()
-	if err != nil {
-		return nil, err
-	}
-	view := &biz.HMIView{OrderID: orderID}
-	err = pool.QueryRow(ctx, `SELECT status, COALESCE(vehicle_id, 0), pickup_snapshot::text, dropoff_snapshot::text, estimated_amount, payable_amount FROM robotaxi.trip_orders WHERE id = $1`, orderID).Scan(&view.OrderStatus, &view.VehicleID, &view.PickupSnapshot, &view.DropoffSnapshot, &view.EstimatedAmount, &view.PayableAmount)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := pool.Query(ctx, `SELECT incident_no, incident_type, severity, description, status, created_at FROM robotaxi.safety_incidents WHERE order_id = $1 AND status IN (0, 1) ORDER BY severity DESC, created_at ASC`, orderID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		incident := &biz.SafetyIncident{}
-		if err = rows.Scan(&incident.IncidentNo, &incident.IncidentType, &incident.Severity, &incident.Description, &incident.Status, &incident.CreatedAt); err != nil {
-			return nil, err
-		}
-		view.SafetyIncidents = append(view.SafetyIncidents, incident)
-	}
-	return view, rows.Err()
-}
-
-// CreateAssistanceRequest 将车辆协助请求记录为待处理安全事件。
-func (r *VehicleHMIRepo) CreateAssistanceRequest(ctx context.Context, item *biz.AssistanceRequest) error {
-	pool, err := r.pool()
-	if err != nil {
-		return err
-	}
-	severity := 2
-	// 靠边停车的安全影响更高，使用更高事件等级。
-	if item.AssistanceType == 4 {
-		severity = 3
-	}
-	incidentNo := "VHMI-" + uuid.NewString()
-	_, err = pool.Exec(ctx, `INSERT INTO robotaxi.safety_incidents (incident_no, order_id, vehicle_id, incident_type, severity, description, snapshot_data, status, created_at, updated_at) VALUES ($1, $2, $3, 5, $4, $5, '{}'::jsonb, 0, $6, $6)`, incidentNo, item.OrderID, item.VehicleID, severity, item.Reason, item.RequestedAt)
-	return err
-}
-
-// CreateMediaRecord 保存媒体文件的存储位置、时间范围和访问级别。
-func (r *VehicleHMIRepo) CreateMediaRecord(ctx context.Context, item *biz.MediaRecord) error {
-	pool, err := r.pool()
-	if err != nil {
-		return err
-	}
-	_, err = pool.Exec(ctx, `INSERT INTO robotaxi.vehicle_media_records (vehicle_id, related_order_id, media_type, storage_key, file_size_bytes, started_at, ended_at, retention_until, access_level, created_at) VALUES ($1, NULLIF($2, 0), $3, $4, NULLIF($5, 0), $6, $7, $8, $9, $10)`, item.VehicleID, item.RelatedOrderID, item.MediaType, item.StorageKey, item.FileSizeBytes, item.StartedAt, item.EndedAt, item.RetentionUntil, item.AccessLevel, item.RecordedAt)
-	return err
-}
-
-// Publish 通过统一 Kafka 生产者发送车辆业务事件。
-func (r *VehicleHMIRepo) Publish(ctx context.Context, topic, key string, payload []byte) error {
-	if r.data.writer == nil {
-		return ErrKafkaUnavailable
-	}
-	if err := r.data.writer.Publish(ctx, topic, key, payload); err != nil {
-		r.data.log.WithContext(ctx).Errorw(
-			"message", "publish vehicle event failed",
-			"topic", topic,
-			"key", key,
-			"error", err,
-		)
-		return err
-	}
-	return nil
-}
+// 编译期断言：确保模块1 data 层实现 biz 定义的仓库接口。
+var (
+	_ biz.PassengerRepo           = (*passengerRepo)(nil)
+	_ biz.PassengerAuthRecordRepo = (*passengerAuthRecordRepo)(nil)
+	_ biz.AddressRepo             = (*addressRepo)(nil)
+	_ biz.CouponRepo              = (*couponRepo)(nil)
+	_ biz.PointRepo               = (*pointRepo)(nil)
+	_ biz.NotificationRepo        = (*notificationRepo)(nil)
+	_ biz.RealNameRepo            = (*realNameRepo)(nil)
+	_ biz.LoginDeviceRepo         = (*loginDeviceRepo)(nil)
+	_ biz.LoginRecordRepo         = (*loginRecordRepo)(nil)
+	_ biz.EmergencyContactRepo    = (*emergencyContactRepo)(nil)
+)

@@ -31,8 +31,8 @@ type VehicleCommand struct {
 	ResultMessage  string
 }
 
-// BoardingVerification 记录一次乘客上车核验尝试。
-type BoardingVerification struct {
+// BoardingVerificationAttempt 记录一次乘客上车核验尝试。
+type BoardingVerificationAttempt struct {
 	OrderID          int64
 	VerificationType int32
 	CredentialHash   string
@@ -133,7 +133,7 @@ type VehicleHMIRepo interface {
 	ListActiveCommands(context.Context, int64, string) ([]*VehicleCommand, error)
 	GetCommand(context.Context, string) (*VehicleCommand, error)
 	UpdateCommandStatus(context.Context, string, CommandStatus, CommandStatus, string, time.Time) (*VehicleCommand, error)
-	CreateBoardingVerification(context.Context, *BoardingVerification) error
+	CreateBoardingVerification(context.Context, *BoardingVerificationAttempt) error
 	CreateTelemetry(context.Context, *TelemetryReport) error
 	CreateFault(context.Context, *FaultReport) error
 	GetHMIView(context.Context, int64) (*HMIView, error)

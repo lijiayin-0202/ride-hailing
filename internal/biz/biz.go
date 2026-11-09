@@ -2,13 +2,31 @@ package biz
 
 import "github.com/google/wire"
 
-// ProviderSet is biz providers.
-//
-// 业务用例层（空模板，预留位置）：
-//   - 领域实体、领域服务、Usecase 均放在本目录
-//   - 依赖通过接口（Repo）注入，接口定义放在本层，实现放在 internal/data
-//
-// 新增用例后在此登记，例如：
-//
-//	var ProviderSet = wire.NewSet(NewOrderUsecase)
-var ProviderSet = wire.NewSet(NewVehicleHMIUsecase)
+// ProviderSet 集中登记各业务模块的领域用例。
+var ProviderSet = wire.NewSet(
+	// 订单、报价、支付与后台派车。
+	NewRideUsecase,
+	// 模块1 用户账号与个人中心。
+	NewAuthUsecase,
+	NewPassengerUsecase,
+	NewAddressUsecase,
+	NewCouponUsecase,
+	NewPointUsecase,
+	NewNotificationUsecase,
+	ProvideRealNameSalt,
+	ProvideRealNameBox,
+	NewRealNameUsecase,
+	NewLoginDeviceUsecase,
+	NewEmergencyContactUsecase,
+	// 模块3 运营区域、站点与派单。
+	NewDispatchUsecase,
+	NewDispatchStateUsecase,
+	NewAutoDispatchUsecase,
+	NewSystemClock,
+	NewServiceAreaAvailabilityUsecase,
+	NewServiceAreaAdminUsecase,
+	NewStationUsecase,
+	NewVehicleUsecase,
+	// 车辆 HMI 指令、遥测、故障与车内交互。
+	NewVehicleHMIUsecase,
+)

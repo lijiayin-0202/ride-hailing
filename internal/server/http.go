@@ -1,8 +1,9 @@
+// 传输层：HTTP 服务创建、路由注册与统一响应/错误编码。
+// 约定（agent/07 §1）：各成员只追加自己的注册行并标注任务号，避免共享文件互相覆盖。
 package server
 
 import (
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/middleware/logging"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
 	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/transport/http"
@@ -12,14 +13,31 @@ import (
 	"github.com/lijayin-0202/radish-ride-service/internal/service"
 )
 
-// NewHTTPServer 创建 kratos HTTP 服务并注册车辆 HMI 路由。
-func NewHTTPServer(c *conf.Server, logger log.Logger, vehicleHMI *service.VehicleHMIService) *http.Server {
+// NewHTTPServer 创建 kratos HTTP 服务并注册业务路由。
+//
+// 各成员新增服务时，在参数尾部追加自己的 service 并在下方注册路由，
+// 避免共享服务器文件互相覆盖。
+func NewHTTPServer(
+	c *conf.Server,
+	logger log.Logger,
+	passengerAccount *service.PassengerAccountService,
+	stationService *service.StationService,
+	serviceAreaAdminService *service.ServiceAreaAdminService,
+	dispatchService *service.DispatchService,
+	rideService *service.RideService,
+	vehicleHMIService *service.VehicleHMIService,
+) *http.Server {
+	// 中间件顺序：panic 兜底 → 链路追踪 → 请求日志；并挂统一响应/错误编码器。
 	opts := []http.ServerOption{
 		http.Middleware(
 			recovery.Recovery(),
 			tracing.Server(),
-			logging.Server(logger),
+			// 不使用 kratos 默认 logging.Server：它会把请求参数（手机号等）打进日志
+			requestLogging(logger),
 		),
+		// 统一返回体 { code, message, requestId, data }（前端页面接口文档 §1.1）
+		http.ResponseEncoder(ResponseEncoder),
+		http.ErrorEncoder(ErrorEncoder),
 	}
 	if c.GetHttp().GetNetwork() != "" {
 		opts = append(opts, http.Network(c.GetHttp().GetNetwork()))
@@ -32,6 +50,33 @@ func NewHTTPServer(c *conf.Server, logger log.Logger, vehicleHMI *service.Vehicl
 	}
 
 	srv := http.NewServer(opts...)
-	v1.RegisterVehicleHMIServiceHTTPServer(srv, vehicleHMI)
+
+	// 模块1 用户账号与个人中心（成员A）
+	// 任务号：UA-T0-01~09（登录/实名）、UA-T1-01（地址）、UA-T2（个人中心/档案维护）
+	// 约定（agent/07 §1）：共享注册文件只追加本模块的注册行与注释，避免多人覆盖。
+	v1.RegisterPassengerAccountHTTPServer(srv, passengerAccount)
+	// 模块3 运营区域、站点与自动派单。
+	v1.RegisterStationServiceHTTPServer(srv, stationService)
+	v1.RegisterServiceAreaAdminServiceHTTPServer(srv, serviceAreaAdminService)
+	v1.RegisterDispatchServiceHTTPServer(srv, dispatchService)
+
+	// 乘客端订单与行程（模块2）。
+	v1.RegisterRideServiceHTTPServer(srv, rideService)
+	// 车辆端 HMI：指令确认、上车核验、遥测、故障和安全协助。
+	v1.RegisterVehicleHMIServiceHTTPServer(srv, vehicleHMIService)
+	srv.Route("/").GET("/api/v1/passenger/orders/{order_id}/events", rideService.StreamOrderEventsHTTP)
+
+	// 后台管理接口（GVA 后台调用），统一由 X-Internal-Token 保护。
+	internal := srv.Route("/api/v1/internal")
+	internal.GET("/orders", rideService.AdminListOrders)
+	internal.GET("/orders/{order_id}", rideService.AdminGetOrder)
+	internal.POST("/orders/{order_id}/dispatch", rideService.AdminDispatch)
+	internal.POST("/orders/{order_id}/commands", rideService.AdminCommand)
+	internal.GET("/passengers", rideService.AdminListPassengers)
+	internal.GET("/passengers/{passenger_id}", rideService.AdminGetPassenger)
+	internal.GET("/vehicles", rideService.AdminListVehicles)
+	internal.GET("/vehicles/{vehicle_id}", rideService.AdminGetVehicle)
+	internal.GET("/dispatch-records", rideService.AdminListDispatchRecords)
+
 	return srv
 }

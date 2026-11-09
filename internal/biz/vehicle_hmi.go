@@ -107,7 +107,7 @@ func (uc *VehicleHMIUsecase) transitionCommand(ctx context.Context, commandNo st
 }
 
 // VerifyBoarding 校验基础参数并保存上车核验记录。
-func (uc *VehicleHMIUsecase) VerifyBoarding(ctx context.Context, item *BoardingVerification) (err error) {
+func (uc *VehicleHMIUsecase) VerifyBoarding(ctx context.Context, item *BoardingVerificationAttempt) (err error) {
 	ctx, span := uc.startSpan(ctx, "verify_boarding")
 	defer uc.finishSpan(ctx, span, "verify_boarding", &err)
 	// 上车动态码原始值应为 4 位；当前接口只接收脱敏后的凭证哈希，因此这里只校验核验方式和哈希非空。
