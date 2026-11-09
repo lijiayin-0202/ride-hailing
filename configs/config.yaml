@@ -12,7 +12,7 @@ data:
     source: ${RIDE_DATABASE_SOURCE}
   redis:
     network: tcp
-    addr: 127.0.0.1:6379
+    addr: redis:6379
     read_timeout: 0.5s
     write_timeout: 0.5s
     password: ""
@@ -32,7 +32,7 @@ data:
     order_sync_poll_interval: 1s
   security:
     # 运行时由 RIDE_DATA_SECURITY_CONTACT_PHONE_KEY 注入。
-    contact_phone_key: ""
+    contact_phone_key: ${RIDE_DATA_SECURITY_CONTACT_PHONE_KEY}
     # 内部服务令牌：调度/车端推进订单状态、支付回调需要携带 X-Internal-Token。
     # 运行时由 RIDE_DATA_SECURITY_INTERNAL_TOKEN 注入；留空时仅用于本地开发放行。
     internal_token: ""

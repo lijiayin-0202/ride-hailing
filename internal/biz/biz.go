@@ -27,4 +27,6 @@ var ProviderSet = wire.NewSet(
 	NewServiceAreaAdminUsecase,
 	NewStationUsecase,
 	NewVehicleUsecase,
+	// 车辆 HMI 指令、遥测、故障与车内交互。
+	NewVehicleHMIUsecase,
 )

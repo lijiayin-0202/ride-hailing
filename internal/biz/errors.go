@@ -3,6 +3,7 @@
 package biz
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -62,6 +63,30 @@ func invalidArgument(format string, args ...any) error {
 	e := kerrors.Clone(ErrInvalidArgument)
 	e.Message = fmt.Sprintf(format, args...)
 	return e
+}
+
+// BusinessError 是车辆 HMI 层使用的统一错误描述，复用当前项目既有错误码。
+type BusinessError struct {
+	Status  int
+	Reason  string
+	Message string
+}
+
+// ToBusinessError 将 HMI 领域错误映射为对外可识别的业务错误。
+func ToBusinessError(err error) BusinessError {
+	switch {
+	case errors.Is(err, ErrInvalidVehicleInput):
+		return BusinessError{Status: http.StatusBadRequest, Reason: CodeInvalidArgument, Message: "车辆端请求参数不合法"}
+	case errors.Is(err, ErrInvalidCommandTransition):
+		return BusinessError{Status: http.StatusConflict, Reason: CodeBusinessConflict, Message: "车辆指令状态流转冲突"}
+	default:
+		return BusinessError{Status: http.StatusInternalServerError, Reason: CodeInternalError, Message: "车辆端服务内部错误"}
+	}
+}
+
+// ToTransportError 将 HMI 业务错误转换为 Kratos HTTP/gRPC 标准错误。
+func ToTransportError(item BusinessError) error {
+	return kerrors.New(item.Status, item.Reason, item.Message)
 }
 
 // tooManyRequests 生成带具体提示的 429 错误：复用既有限流码，不新增未定义错误码。
